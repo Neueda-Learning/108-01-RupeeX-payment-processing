@@ -32,5 +32,20 @@ services:
       - "8081:8080"
     restart: on-failure
 
+  frontend:
+    build: ./frontend
+    container_name: rupeex-frontend
+    depends_on:
+      - app
+    environment:
+      # Server-side base URL the frontend uses to reach the backend.
+      # Uses the docker-compose service name `app`, resolvable on the
+      # internal compose network.
+      API_BASE_URL: ${FRONTEND_API_BASE_URL:-http://app:8080}
+      PORT: 3000
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    restart: on-failure
+
 volumes:
   db_data:

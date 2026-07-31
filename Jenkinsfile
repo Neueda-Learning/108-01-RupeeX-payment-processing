@@ -56,6 +56,19 @@ EOF
         }
 
 
+        stage('Frontend Checks') {
+            steps {
+                sh '''
+                    docker run --rm \
+                        -v "$WORKSPACE/frontend:/app" \
+                        -w /app \
+                        node:20-alpine \
+                        sh -c "npm ci && npm run lint && npm run build"
+                '''
+            }
+        }
+
+
         stage('Stop Existing Containers') {
             steps {
                 sh '''
@@ -98,8 +111,11 @@ EOF
                     docker ps
                     docker-compose -f ${COMPOSE_FILE} ps
 
-                    echo "Checking application logs..."
+                    echo "Checking backend logs..."
                     docker logs --tail=50 rupeex-app
+
+                    echo "Checking frontend logs..."
+                    docker logs --tail=50 rupeex-frontend
                 '''
             }
         }
@@ -127,8 +143,11 @@ EOF
             echo "Deployment failed ❌"
 
             sh '''
-                echo "Application logs:"
+                echo "Backend logs:"
                 docker logs --tail=100 rupeex-app || true
+
+                echo "Frontend logs:"
+                docker logs --tail=100 rupeex-frontend || true
             '''
         }
 
