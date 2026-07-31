@@ -1,4 +1,17 @@
 package com.rupeex.main.enums;
 
-public class PaymentStatus {
+
+public enum PaymentStatus {
+
+
+    CREATED,
+
+    VALIDATED,
+
+    SENT,
+
+    COMPLETED,
+
+    INITIATED, SUCCESS, PROCESSING, FAILED
+
 }

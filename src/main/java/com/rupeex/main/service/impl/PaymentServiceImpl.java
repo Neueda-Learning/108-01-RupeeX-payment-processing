@@ -2,6 +2,8 @@ package com.rupeex.main.service.impl;
 
 import com.rupeex.main.dto.PaymentRequest;
 import com.rupeex.main.dto.PaymentResponse;
+import com.rupeex.main.entity.Payment;
+import com.rupeex.main.enums.PaymentStatus;
 import com.rupeex.main.repository.PaymentRepository;
 import com.rupeex.main.service.IdempotencyService;
 import com.rupeex.main.service.PaymentService;
@@ -45,7 +47,7 @@ public class PaymentServiceImpl
 
         payment.setAmount(request.getAmount());
 
-        payment.setCurrency(request.getCurrency());
+//      payment.setAmount(request.getCurrency());
 
         payment.setStatus(
                 PaymentStatus.CREATED
@@ -62,4 +64,31 @@ public class PaymentServiceImpl
 
     }
 
+    private PaymentResponse mapToResponse(Payment saved) {
+
+        PaymentResponse response =
+                new PaymentResponse();
+
+        response.setPaymentId(saved.getId());
+
+//        response.setPaymentId(saved.getAmount());
+
+        response.setCurrency(saved.getCurrency());
+
+        response.setStatus(saved.getStatus());
+
+        return response;
+    }
+
+    @Override
+    public PaymentResponse getPaymentById(Long paymentId) {
+        return null;
+    }
+
+    @Override
+    public void updatePaymentStatus(Long paymentId, PaymentStatus status) {
+
+    }
+
 }
+

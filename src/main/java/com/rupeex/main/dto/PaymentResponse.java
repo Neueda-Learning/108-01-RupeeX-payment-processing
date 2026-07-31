@@ -1,6 +1,8 @@
 package com.rupeex.main.dto;
 
 
+import com.rupeex.main.enums.PaymentStatus;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -40,6 +42,15 @@ public class PaymentResponse {
 
     private LocalDateTime updatedAt;
 
+    public void setPaymentId(Long id) {
+    }
+
+    public void setCurrency(Object currency) {
+        
+    }
+
+    public void setStatus(Object status) {
+    }
 
 
     // Getters and Setters

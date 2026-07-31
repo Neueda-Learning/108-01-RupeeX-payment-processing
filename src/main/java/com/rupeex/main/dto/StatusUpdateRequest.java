@@ -1,6 +1,7 @@
 package com.rupeex.main.dto;
 
 
+import com.rupeex.main.enums.PaymentStatus;
 import jakarta.validation.constraints.NotNull;
 
 

@@ -1,7 +1,21 @@
+package com.rupeex.main.service.impl;
+
+import com.rupeex.main.enums.PaymentStatus;
+import com.rupeex.main.service.PaymentStatusService;
+import org.springframework.stereotype.Service;
+
 @Service
 public class PaymentStatusServiceImpl
-        implements PaymentStatusService{
+        implements PaymentStatusService {
 
+
+    @Override
+    public void updateStatus(Long paymentId, PaymentStatus newStatus) {
+
+        // Implementation for updating the payment status in the database
+        // This is a placeholder implementation and should be replaced with actual database update logic
+        System.out.println("Updating payment ID " + paymentId + " to new status: " + newStatus);
+    }
 
     @Override
     public boolean isValidTransition(

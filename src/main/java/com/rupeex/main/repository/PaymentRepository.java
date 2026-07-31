@@ -1,6 +1,7 @@
 package com.rupeex.main.repository;
 
 import com.rupeex.main.entity.Payment;
+import com.rupeex.main.enums.PaymentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

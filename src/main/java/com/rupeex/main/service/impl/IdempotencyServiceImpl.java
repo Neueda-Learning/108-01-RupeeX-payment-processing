@@ -1,10 +1,14 @@
 package com.rupeex.main.service.impl;
 
+import com.rupeex.main.exception.DuplicatePaymentException;
 import com.rupeex.main.repository.PaymentRepository;
+import com.rupeex.main.service.IdempotencyService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 @Service
 public class IdempotencyServiceImpl
-        implements IdempotencyService{
+        implements IdempotencyService {
 
 
     @Autowired
