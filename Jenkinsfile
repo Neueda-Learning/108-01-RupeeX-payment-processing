@@ -25,8 +25,7 @@ pipeline {
                     string(credentialsId: 'MYSQL_PASSWORD', variable: 'MYSQL_PASSWORD'),
                     string(credentialsId: 'SPRING_DATASOURCE_PASSWORD', variable: 'SPRING_DATASOURCE_PASSWORD')
                 ]) {
-
-                    sh '''
+                    sh """
                     cat > .env <<EOF
 MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
 MYSQL_DATABASE=rupeex
@@ -41,7 +40,7 @@ SERVER_PORT=8080
 EOF
 
                     echo ".env file created"
-                    '''
+                    """
                 }
             }
         }
@@ -128,8 +127,8 @@ EOF
             echo "Deployment failed ❌"
 
             sh '''
-            echo "Application logs:"
-            docker logs --tail=100 rupeex-app || true
+                echo "Application logs:"
+                docker logs --tail=100 rupeex-app || true
             '''
         }
 
