@@ -18,4 +18,31 @@ public class StatusUpdateRequest {
 
     // Getters and Setters
 
+    public PaymentStatus getStatus() {
+
+        return status;
+
+    }
+
+
+    public void setStatus(PaymentStatus status) {
+
+        this.status = status;
+
+    }
+
+
+    public String getReason() {
+
+        return reason;
+
+    }
+
+
+    public void setReason(String reason) {
+
+        this.reason = reason;
+
+    }
+
 }
