@@ -1,0 +1,11 @@
+version: "3.8"
+
+services:
+  app:
+    # Uses the fully-qualified image name provided by the pipeline
+    image: ${IMAGE_FULL}:${IMAGE_TAG:-latest}
+    env_file:
+      - .env
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    restart: always

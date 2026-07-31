@@ -1,0 +1,36 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: rupeex-db
+    restart: always
+    env_file:
+      - .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-rupeex}
+      MYSQL_USER: ${MYSQL_USER:-rupeex}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+
+  app:
+    build: .
+    container_name: rupeex-app
+    depends_on:
+      - db
+    env_file:
+      - .env
+    environment:
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:mysql://db:3306/rupeex?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-rupeex}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      SERVER_PORT: ${SERVER_PORT:-8080}
+    ports:
+      - "8081:8080"
+    restart: on-failure
+
+volumes:
+  db_data:
