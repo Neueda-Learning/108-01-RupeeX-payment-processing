@@ -1,0 +1,36 @@
+package com.rupeex.main.enums;
+
+
+public enum PaymentErrorCode {
+
+
+    VALIDATION_FAILED,
+
+
+    INVALID_AMOUNT,
+
+
+    INVALID_CURRENCY,
+
+
+    INVALID_ACCOUNT,
+
+
+    INSUFFICIENT_FUNDS,
+
+
+    DUPLICATE_PAYMENT,
+
+
+    PAYMENT_NOT_FOUND,
+
+
+    INVALID_STATUS_TRANSITION,
+
+
+    PROCESSING_ERROR,
+
+
+    NETWORK_ERROR
+
+}
