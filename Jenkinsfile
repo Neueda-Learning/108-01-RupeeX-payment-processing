@@ -105,17 +105,19 @@ EOF
         }
 
 
-        stage('Verify Deployment') {
+       stage('Verify Deployment') {
             steps {
                 sh '''
                     docker ps
                     docker-compose -f ${COMPOSE_FILE} ps
 
-                    echo "Checking backend logs..."
-                    docker logs --tail=50 rupeex-app
+                    echo "Checking application logs..."
 
-                    echo "Checking frontend logs..."
-                    docker logs --tail=50 rupeex-frontend
+                    docker logs --tail=50 rupeex-app || true
+
+                    echo "Frontend logs:"
+
+                    docker logs --tail=100 rupeex-frontend || true
                 '''
             }
         }
