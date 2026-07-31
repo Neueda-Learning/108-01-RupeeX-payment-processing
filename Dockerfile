@@ -1,5 +1,5 @@
 # Multi-stage Dockerfile: build with Maven, run on JRE
-FROM maven:3.10.1-eclipse-temurin-21 as builder
+FROM maven:3.9.1-eclipse-temurin-21 as builder
 WORKDIR /workspace
 COPY pom.xml mvnw .
 COPY .mvn .mvn
