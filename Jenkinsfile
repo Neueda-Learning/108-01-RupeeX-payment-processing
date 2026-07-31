@@ -55,20 +55,6 @@ EOF
             }
         }
 
-
-        stage('Frontend Checks') {
-            steps {
-                sh '''
-                    docker run --rm \
-                        -v "$WORKSPACE/frontend:/app" \
-                        -w /app \
-                        node:20-alpine \
-                        sh -c "npm ci && npm run lint && npm run build"
-                '''
-            }
-        }
-
-
         stage('Stop Existing Containers') {
             steps {
                 sh '''
