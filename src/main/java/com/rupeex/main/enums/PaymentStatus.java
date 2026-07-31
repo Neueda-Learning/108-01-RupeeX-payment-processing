@@ -12,6 +12,10 @@ public enum PaymentStatus {
 
     COMPLETED,
 
+    PENDING_VERIFICATION,
+
+    DECLINED,
+
     INITIATED, SUCCESS, PROCESSING, FAILED
 
 }

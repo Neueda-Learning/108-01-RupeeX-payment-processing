@@ -3,6 +3,7 @@ package com.rupeex.main.service;
 
 import com.rupeex.main.dto.PaymentRequest;
 import com.rupeex.main.dto.PaymentResponse;
+import com.rupeex.main.dto.VerificationDecisionRequest;
 import com.rupeex.main.enums.PaymentStatus;
 
 
@@ -22,6 +23,12 @@ public interface PaymentService {
     void updatePaymentStatus(
             Long paymentId,
             PaymentStatus status
+    );
+
+
+    PaymentResponse processVerificationDecision(
+            Long paymentId,
+            VerificationDecisionRequest request
     );
 
 

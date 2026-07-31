@@ -176,6 +176,22 @@ public class Payment {
 
 
 
+    public String getSourceAccount(){
+
+        return this.sourceAccount;
+
+    }
+
+
+
+    public String getDestinationAccount(){
+
+        return this.destinationAccount;
+
+    }
+
+
+
 
     public PaymentStatus getStatus(){
 
@@ -198,6 +214,30 @@ public class Payment {
     public LocalDateTime getCreatedAt(){
 
         return this.createdAt;
+
+    }
+
+
+
+    public LocalDateTime getUpdatedAt(){
+
+        return this.updatedAt;
+
+    }
+
+
+
+    public String getErrorCode(){
+
+        return this.errorCode;
+
+    }
+
+
+
+    public String getErrorMessage(){
+
+        return this.errorMessage;
 
     }
 
@@ -237,11 +277,35 @@ public class Payment {
 
 
 
+    public void setSourceAccount(String sourceAccount){
+
+        this.sourceAccount = sourceAccount;
+
+    }
+
+
+
+    public void setDestinationAccount(String destinationAccount){
+
+        this.destinationAccount = destinationAccount;
+
+    }
+
+
+
 
 
     public void setPaymentReference(String paymentReference){
 
         this.paymentReference = paymentReference;
+
+    }
+
+
+
+    public void setIdempotencyKey(String idempotencyKey){
+
+        this.idempotencyKey = idempotencyKey;
 
     }
 
