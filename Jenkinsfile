@@ -55,7 +55,6 @@ EOF
             }
         }
 
-
         stage('Stop Existing Containers') {
             steps {
                 sh '''
@@ -92,14 +91,19 @@ EOF
         }
 
 
-        stage('Verify Deployment') {
+       stage('Verify Deployment') {
             steps {
                 sh '''
                     docker ps
                     docker-compose -f ${COMPOSE_FILE} ps
 
                     echo "Checking application logs..."
-                    docker logs --tail=50 rupeex-app
+
+                    docker logs --tail=50 rupeex-app || true
+
+                    echo "Frontend logs:"
+
+                    docker logs --tail=100 rupeex-frontend || true
                 '''
             }
         }
@@ -127,8 +131,11 @@ EOF
             echo "Deployment failed ❌"
 
             sh '''
-                echo "Application logs:"
+                echo "Backend logs:"
                 docker logs --tail=100 rupeex-app || true
+
+                echo "Frontend logs:"
+                docker logs --tail=100 rupeex-frontend || true
             '''
         }
 

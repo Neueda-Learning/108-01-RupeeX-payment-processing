@@ -123,3 +123,45 @@ CREATE TABLE IF NOT EXISTS accounts (
 -- INSERT INTO payment_status_history (payment_id, status, remarks, changed_by)
 -- VALUES (1, 'PENDING', 'Payment queued for processing', 'SYSTEM');
 
+
+-- ============================================================================
+-- 4. CUSTOMER_TRUST_PROFILES TABLE
+-- ============================================================================
+-- Stores adaptive trust scores for each customer/source account
+
+CREATE TABLE IF NOT EXISTS customer_trust_profiles (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    customer_id VARCHAR(255) NOT NULL UNIQUE,
+    currency_change_score DOUBLE NOT NULL DEFAULT 0.5,
+    large_payment_score DOUBLE NOT NULL DEFAULT 0.5,
+    rapid_payments_score DOUBLE NOT NULL DEFAULT 0.5,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_customer_id (customer_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ============================================================================
+-- 5. PAYMENT_VERIFICATIONS TABLE
+-- ============================================================================
+-- Stores verification records for payments that fall below the trust threshold
+
+CREATE TABLE IF NOT EXISTS payment_verifications (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    payment_id BIGINT NOT NULL UNIQUE,
+    customer_id VARCHAR(255) NOT NULL,
+    verification_token VARCHAR(255) NOT NULL UNIQUE,
+    trust_score_at_decision DOUBLE NOT NULL,
+    currency_change_triggered BOOLEAN NOT NULL,
+    large_payment_triggered BOOLEAN NOT NULL,
+    rapid_payments_triggered BOOLEAN NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    customer_email VARCHAR(255),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_payment_verification_payment_id (payment_id),
+    INDEX idx_payment_verification_customer_id (customer_id),
+    FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
