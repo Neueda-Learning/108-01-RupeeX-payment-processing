@@ -206,4 +206,12 @@ public class PaymentResponse {
     }
 
 
+    public void setTrustScore(double trustScore) {
+    }
+
+    public void setVerificationRequired(boolean requiresVerification) {
+    }
+
+    public void setVerificationToken(String verificationToken) {
+    }
 }
