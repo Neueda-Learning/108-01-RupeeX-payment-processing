@@ -1,5 +1,10 @@
 import Link from "next/link";
-import { ArrowRight, Building2, CircleDollarSign, UserRoundSearch } from "lucide-react";
+import {
+  ArrowRight,
+  Building2,
+  CircleDollarSign,
+  UserRoundSearch,
+} from "lucide-react";
 import { getDashboardStats, getPayments } from "@/lib/api";
 import { formatCurrency, formatPercent } from "@/lib/format";
 
@@ -40,12 +45,18 @@ export default async function Home() {
   let loadError: string | null = null;
 
   try {
-    const [payments, stats] = await Promise.all([getPayments(), getDashboardStats()]);
+    const [payments, stats] = await Promise.all([
+      getPayments(),
+      getDashboardStats(),
+    ]);
     paymentsCount = payments.length;
     totalVolume = stats.totalVolume;
     successRate = stats.successRate;
   } catch (error) {
-    loadError = error instanceof Error ? error.message : "Unable to load overview metrics";
+    loadError =
+      error instanceof Error
+        ? error.message
+        : "Unable to load overview metrics";
   }
 
   return (
@@ -66,19 +77,27 @@ export default async function Home() {
 
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="rounded-2xl border border-black/10 bg-white/70 p-4">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Total payment volume</p>
+            <p className="text-xs uppercase tracking-wide text-slate-500">
+              Total payment volume
+            </p>
             <p className="mt-1 text-2xl font-semibold text-slate-900">
               {loadError ? "Unavailable" : formatCurrency(totalVolume, "INR")}
             </p>
           </div>
           <div className="rounded-2xl border border-black/10 bg-white/70 p-4">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Payments loaded</p>
+            <p className="text-xs uppercase tracking-wide text-slate-500">
+              Payments loaded
+            </p>
             <p className="mt-1 text-2xl font-semibold text-slate-900">
-              {loadError ? "Unavailable" : paymentsCount.toLocaleString("en-IN")}
+              {loadError
+                ? "Unavailable"
+                : paymentsCount.toLocaleString("en-IN")}
             </p>
           </div>
           <div className="rounded-2xl border border-black/10 bg-white/70 p-4">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Success rate</p>
+            <p className="text-xs uppercase tracking-wide text-slate-500">
+              Success rate
+            </p>
             <p className="mt-1 text-2xl font-semibold text-slate-900">
               {loadError ? "Unavailable" : formatPercent(successRate)}
             </p>
@@ -108,9 +127,15 @@ export default async function Home() {
                 <div className="inline-flex rounded-xl border border-black/10 bg-white/70 p-2">
                   <Icon className="h-5 w-5 text-slate-700" />
                 </div>
-                <p className="mt-4 text-xs uppercase tracking-wide text-slate-500">{view.subtitle}</p>
-                <h2 className="mt-1 text-xl font-semibold text-slate-900">{view.title}</h2>
-                <p className="mt-2 text-sm text-slate-600">{view.description}</p>
+                <p className="mt-4 text-xs uppercase tracking-wide text-slate-500">
+                  {view.subtitle}
+                </p>
+                <h2 className="mt-1 text-xl font-semibold text-slate-900">
+                  {view.title}
+                </h2>
+                <p className="mt-2 text-sm text-slate-600">
+                  {view.description}
+                </p>
                 <span className="mt-5 inline-flex items-center gap-1 text-sm font-medium text-orange-700 group-hover:text-orange-800">
                   Open view
                   <ArrowRight className="h-4 w-4" />
@@ -122,7 +147,9 @@ export default async function Home() {
       </section>
 
       <section className="panel mt-8 rounded-2xl p-5">
-        <h3 className="text-lg font-semibold text-slate-900">Need direct actions?</h3>
+        <h3 className="text-lg font-semibold text-slate-900">
+          Need direct actions?
+        </h3>
         <p className="mt-1 text-sm text-slate-600">
           Use Payments to create transactions, Events to monitor live updates,
           Fraud Rules to tune policy, and DLQ for recovery actions.

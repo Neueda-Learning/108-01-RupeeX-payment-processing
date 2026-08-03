@@ -157,28 +157,39 @@ export default function DestinationAccountViewPage() {
           <table className="min-w-full divide-y divide-black/5">
             <thead className="bg-slate-50">
               <tr>
-                {["Payment", "Source Account", "Amount", "Status", "Updated", "Action"].map(
-                  (header) => (
-                    <th
-                      key={header}
-                      className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500"
-                    >
-                      {header}
-                    </th>
-                  ),
-                )}
+                {[
+                  "Payment",
+                  "Source Account",
+                  "Amount",
+                  "Status",
+                  "Updated",
+                  "Action",
+                ].map((header) => (
+                  <th
+                    key={header}
+                    className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500"
+                  >
+                    {header}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-black/5">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-sm text-slate-500">
+                  <td
+                    colSpan={6}
+                    className="px-6 py-8 text-center text-sm text-slate-500"
+                  >
                     Loading destination account data...
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-sm text-slate-500">
+                  <td
+                    colSpan={6}
+                    className="px-6 py-8 text-center text-sm text-slate-500"
+                  >
                     No incoming payments found for this destination account.
                   </td>
                 </tr>

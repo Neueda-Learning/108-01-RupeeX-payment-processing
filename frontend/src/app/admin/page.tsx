@@ -114,28 +114,40 @@ export default function AdminViewPage() {
           <table className="min-w-full divide-y divide-black/5">
             <thead className="bg-slate-50">
               <tr>
-                {["Payment", "Source Account", "Destination Account", "Amount", "Status", "Updated", "Action"].map(
-                  (header) => (
-                    <th
-                      key={header}
-                      className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500"
-                    >
-                      {header}
-                    </th>
-                  ),
-                )}
+                {[
+                  "Payment",
+                  "Source Account",
+                  "Destination Account",
+                  "Amount",
+                  "Status",
+                  "Updated",
+                  "Action",
+                ].map((header) => (
+                  <th
+                    key={header}
+                    className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500"
+                  >
+                    {header}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-black/5">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-sm text-slate-500">
+                  <td
+                    colSpan={7}
+                    className="px-6 py-8 text-center text-sm text-slate-500"
+                  >
                     Loading payments...
                   </td>
                 </tr>
               ) : payments.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-sm text-slate-500">
+                  <td
+                    colSpan={7}
+                    className="px-6 py-8 text-center text-sm text-slate-500"
+                  >
                     No payments found.
                   </td>
                 </tr>

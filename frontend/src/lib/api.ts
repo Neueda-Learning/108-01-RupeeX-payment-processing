@@ -22,7 +22,9 @@ import type {
 export const API_BASE_URL =
   process.env.API_BASE_URL ??
   process.env.NEXT_PUBLIC_API_BASE_URL ??
-  "http://localhost:8080";
+  (typeof window !== "undefined"
+    ? `${window.location.protocol}//${window.location.hostname}:8081`
+    : "http://localhost:8080");
 
 class ApiError extends Error {
   constructor(
@@ -44,7 +46,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!res.ok) {
     let detail = `Request to ${path} failed`;
     try {
-      const payload = (await res.json()) as { detail?: string; message?: string };
+      const payload = (await res.json()) as {
+        detail?: string;
+        message?: string;
+      };
       detail = payload.detail ?? payload.message ?? detail;
     } catch {
       // Ignore parse error and keep fallback message.
@@ -229,7 +234,8 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       ? ((metrics.successfulPayments ?? 0) / metrics.totalPayments) * 100
       : 0);
 
-  const successRate = successRateRaw > 1 ? successRateRaw / 100 : successRateRaw;
+  const successRate =
+    successRateRaw > 1 ? successRateRaw / 100 : successRateRaw;
   const totalVolume = payments.reduce((sum, payment) => {
     const value = Number.parseFloat(payment.amount);
     return sum + (Number.isFinite(value) ? value : 0);
@@ -239,7 +245,8 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     totalVolume,
     totalPayments,
     successRate,
-    activeAccounts: new Set(payments.map((payment) => payment.sourceAccount)).size,
+    activeAccounts: new Set(payments.map((payment) => payment.sourceAccount))
+      .size,
   };
 }
 

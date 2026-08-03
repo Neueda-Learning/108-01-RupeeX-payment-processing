@@ -3,12 +3,14 @@
 ## 1. Complete Software Architecture
 
 ### Architecture Style
+
 - Clean Architecture with modular engines.
 - Domain-first design centered on payment lifecycle state transitions.
 - Event-driven internals through persisted system events and WebSocket push.
 - Asynchronous settlement processing via queue scheduler and retry policy.
 
 ### Logical Layers
+
 - Controller Layer: REST APIs for Payments, Fraud Rules, Metrics, Dashboard, Events.
 - Service Layer: orchestrates use cases, transaction boundaries, idempotency, and retries.
 - Engine Layer: validation, fraud detection, risk scoring, queue manager, settlement, audit, metrics, notification.
@@ -74,6 +76,7 @@ src/main/java/com/rupeex/main
 ```
 
 ## 3. Database Schema (Normalized)
+
 - Core tables: payments, accounts, payment_history, audit_logs.
 - Fraud/Risk: fraud_rules, fraud_results, risk_scores.
 - Processing: processing_queue, dead_letter_queue.
@@ -174,6 +177,7 @@ flowchart TB
 ```
 
 ## 6. API Documentation (Production-Style)
+
 - POST /payments: create payment with idempotency key.
 - GET /payments: paginated payment listing.
 - GET /payments/{id}: payment details including risk/fraud context.
@@ -193,6 +197,7 @@ Swagger UI: /swagger-ui
 OpenAPI docs: /api-docs
 
 ## 7. Backend Implementation Plan
+
 1. Stabilize payment lifecycle state machine and hard transition validation.
 2. Add dedicated validation policies and policy registry.
 3. Replace scheduler polling with message broker abstraction (Kafka/Rabbit) for horizontal scale.
@@ -202,6 +207,7 @@ OpenAPI docs: /api-docs
 7. Add replay API for flight recorder timeline.
 
 ## 8. Frontend Implementation Plan
+
 1. Next.js 15 App Router pages:
    - Dashboard, Payments, Payment Details, Fraud Center, Risk Center, Rules, DLQ, Reports, Audit Logs, Settings.
 2. State and data:
@@ -216,6 +222,7 @@ OpenAPI docs: /api-docs
    - TailwindCSS + ShadCN components with responsive banking console layout.
 
 ## 9. Docker Setup
+
 - Backend Dockerfile: multi-stage Maven build -> Temurin 21 runtime.
 - docker-compose.yml:
   - mysql:8.0
@@ -226,7 +233,9 @@ OpenAPI docs: /api-docs
   - app: actuator health endpoint (recommended for compose healthcheck extension).
 
 ## 10. Jenkins Pipeline
+
 Pipeline stages:
+
 1. Checkout
 2. Generate .env from Jenkins credentials
 3. Docker sanity checks
@@ -237,11 +246,13 @@ Pipeline stages:
 8. Cleanup workspace
 
 Recommended extension:
+
 - Add stages for unit tests, integration tests, security scan, and quality gate before deploy.
 
 ## 11. Development Roadmap (MVP -> Platform Scale)
 
 ### MVP (2-3 sprints)
+
 - Payments lifecycle orchestration
 - Fraud rules + risk scoring
 - Queue/retry/DLQ
@@ -249,6 +260,7 @@ Recommended extension:
 - Basic dashboard UI
 
 ### Production Hardening (next 3-5 sprints)
+
 - Outbox + event broker
 - Distributed lock/idempotency
 - Advanced failure injection
@@ -256,6 +268,7 @@ Recommended extension:
 - SLO dashboards and alerting
 
 ### Platform Scale (next 2 quarters)
+
 - Multi-region active-active architecture
 - RTO/RPO runbooks and chaos testing
 - Data retention and archival policies
@@ -263,6 +276,7 @@ Recommended extension:
 - Zero-downtime schema migrations
 
 ## 12. Architectural Decisions Explained
+
 - State Machine: prevents illegal state mutation and creates deterministic lifecycle behavior.
 - Database-driven Fraud Rules: enables policy teams to tune risk without code releases.
 - Async Queue + Retry + DLQ: isolates transient failures, protects throughput, and ensures inspectability.

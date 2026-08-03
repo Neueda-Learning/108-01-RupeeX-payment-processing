@@ -58,7 +58,9 @@ export default function SourceAccountViewPage() {
   const rows = useMemo(
     () =>
       selectedAccount
-        ? payments.filter((payment) => payment.sourceAccount === selectedAccount)
+        ? payments.filter(
+            (payment) => payment.sourceAccount === selectedAccount,
+          )
         : payments,
     [payments, selectedAccount],
   );
@@ -89,7 +91,10 @@ export default function SourceAccountViewPage() {
       )}
 
       <section className="panel rounded-2xl p-5">
-        <label className="text-sm font-medium text-slate-700" htmlFor="source-account">
+        <label
+          className="text-sm font-medium text-slate-700"
+          htmlFor="source-account"
+        >
           Select source account
         </label>
         <select
@@ -149,28 +154,39 @@ export default function SourceAccountViewPage() {
           <table className="min-w-full divide-y divide-black/5">
             <thead className="bg-slate-50">
               <tr>
-                {["Payment", "Destination Account", "Amount", "Status", "Updated", "Action"].map(
-                  (header) => (
-                    <th
-                      key={header}
-                      className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500"
-                    >
-                      {header}
-                    </th>
-                  ),
-                )}
+                {[
+                  "Payment",
+                  "Destination Account",
+                  "Amount",
+                  "Status",
+                  "Updated",
+                  "Action",
+                ].map((header) => (
+                  <th
+                    key={header}
+                    className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500"
+                  >
+                    {header}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-black/5">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-sm text-slate-500">
+                  <td
+                    colSpan={6}
+                    className="px-6 py-8 text-center text-sm text-slate-500"
+                  >
                     Loading source account data...
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-sm text-slate-500">
+                  <td
+                    colSpan={6}
+                    className="px-6 py-8 text-center text-sm text-slate-500"
+                  >
                     No outgoing payments found for this source account.
                   </td>
                 </tr>
