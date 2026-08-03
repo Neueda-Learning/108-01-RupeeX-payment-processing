@@ -4,6 +4,7 @@ import com.rupeex.main.entity.DeadLetterQueueEntry;
 import com.rupeex.main.entity.Payment;
 import com.rupeex.main.entity.ProcessingQueueEntry;
 import com.rupeex.main.enums.PaymentStatus;
+import com.rupeex.main.repository.AccountsRepository;
 import com.rupeex.main.repository.DeadLetterQueueRepository;
 import com.rupeex.main.repository.PaymentRepository;
 import com.rupeex.main.repository.ProcessingQueueRepository;
@@ -20,6 +21,7 @@ public class QueueProcessingScheduler {
 
     private final ProcessingQueueRepository processingQueueRepository;
     private final PaymentRepository paymentRepository;
+    private final AccountsRepository accountsRepository;
     private final SettlementEngineService settlementEngineService;
     private final AuditEngineService auditEngineService;
     private final NotificationEngineService notificationEngineService;
@@ -30,6 +32,7 @@ public class QueueProcessingScheduler {
 
     public QueueProcessingScheduler(ProcessingQueueRepository processingQueueRepository,
                                     PaymentRepository paymentRepository,
+                                    AccountsRepository accountsRepository,
                                     SettlementEngineService settlementEngineService,
                                     AuditEngineService auditEngineService,
                                     NotificationEngineService notificationEngineService,
@@ -38,6 +41,7 @@ public class QueueProcessingScheduler {
                                     @Value("${payment.processing.base-delay-ms:500}") long baseDelayMs) {
         this.processingQueueRepository = processingQueueRepository;
         this.paymentRepository = paymentRepository;
+        this.accountsRepository = accountsRepository;
         this.settlementEngineService = settlementEngineService;
         this.auditEngineService = auditEngineService;
         this.notificationEngineService = notificationEngineService;
@@ -81,6 +85,20 @@ public class QueueProcessingScheduler {
         paymentRepository.save(payment);
         auditEngineService.record(payment.getId(), "SettlementEngine", "Payment Sent", PaymentStatus.PROCESSING, PaymentStatus.SENT, 0L, "Sent to external network");
 
+        // Debit source account — if insufficient funds, fail the payment
+        int debited = accountsRepository.debitBalance(payment.getSourceAccount(), payment.getAmount());
+        if (debited == 0) {
+            payment.markAsFailed("INSUFFICIENT_FUNDS", "Insufficient funds in source account");
+            paymentRepository.save(payment);
+            auditEngineService.record(payment.getId(), "SettlementEngine", "Insufficient Funds", PaymentStatus.SENT, PaymentStatus.FAILED, 0L, "Balance too low");
+            notificationEngineService.notifyPaymentEvent(payment.getId(), "PAYMENT_FAILED", "Insufficient funds");
+            processingQueueRepository.delete(entry);
+            return;
+        }
+
+        // Credit destination account
+        accountsRepository.creditBalance(payment.getDestinationAccount(), payment.getAmount());
+
         payment.setStatus(PaymentStatus.SETTLED);
         paymentRepository.save(payment);
         auditEngineService.record(payment.getId(), "SettlementEngine", "Settlement Complete", PaymentStatus.SENT, PaymentStatus.SETTLED, 0L, "Payment settled");
@@ -92,8 +110,7 @@ public class QueueProcessingScheduler {
     private void handleFailure(Payment payment, ProcessingQueueEntry entry) {
         int nextRetry = entry.getRetryCount() + 1;
         if (nextRetry > maxRetries) {
-            payment.setStatus(PaymentStatus.FAILED);
-            payment.setErrorMessage("Exceeded retry limit");
+            payment.markAsFailed("RETRY_EXCEEDED", "Exceeded retry limit");
             paymentRepository.save(payment);
 
             DeadLetterQueueEntry dlq = new DeadLetterQueueEntry();
@@ -114,7 +131,6 @@ public class QueueProcessingScheduler {
         processingQueueRepository.save(entry);
 
         payment.setStatus(PaymentStatus.QUEUED);
-        payment.setErrorMessage("Attempt " + nextRetry + " failed, queued for retry");
         paymentRepository.save(payment);
 
         auditEngineService.record(payment.getId(), "SettlementEngine", "Retry", PaymentStatus.PROCESSING, PaymentStatus.QUEUED, 0L, payment.getErrorMessage());

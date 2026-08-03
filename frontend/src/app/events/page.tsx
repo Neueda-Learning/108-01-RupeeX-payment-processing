@@ -33,8 +33,12 @@ export default function EventsPage() {
 
     // Load existing events from REST on mount
     getEvents()
-      .then((rows) => { if (mounted) setEvents(rows); })
-      .catch(() => { if (mounted) setEvents([]); });
+      .then((rows) => {
+        if (mounted) setEvents(rows);
+      })
+      .catch(() => {
+        if (mounted) setEvents([]);
+      });
 
     // Use native WebSocket with STOMP framing to avoid SockJS /info polling
     const wsUrl = toWsUrl(API_BASE_URL);
@@ -66,7 +70,9 @@ export default function EventsPage() {
           try {
             const payload = JSON.parse(body) as SystemEvent;
             setEvents((prev) => uniqueById([payload, ...prev]).slice(0, 100));
-          } catch { /* ignore malformed frames */ }
+          } catch {
+            /* ignore malformed frames */
+          }
         }
       };
 
@@ -74,7 +80,9 @@ export default function EventsPage() {
         if (mounted) {
           setSocketConnected(false);
           // Reconnect after 5s
-          setTimeout(() => { if (mounted) connect(); }, 5000);
+          setTimeout(() => {
+            if (mounted) connect();
+          }, 5000);
         }
       };
 
@@ -91,7 +99,9 @@ export default function EventsPage() {
       try {
         const rows = await getEvents();
         if (mounted) setEvents(rows);
-      } catch { /* keep existing rows */ }
+      } catch {
+        /* keep existing rows */
+      }
     }, 10000);
 
     return () => {
@@ -99,7 +109,7 @@ export default function EventsPage() {
       window.clearInterval(poll);
       wsRef.current?.close();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const connectionBadge = useMemo(

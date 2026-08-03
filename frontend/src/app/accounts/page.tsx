@@ -207,7 +207,8 @@ export default function AccountsPage() {
                     </span>
                     {selected.balance != null && (
                       <span className="rounded-full bg-orange-50 px-2 py-0.5 text-xs font-semibold text-orange-700 ring-1 ring-orange-200">
-                        Balance: {selected.currency} {Number(selected.balance).toLocaleString("en-IN")}
+                        Balance: {selected.currency}{" "}
+                        {Number(selected.balance).toLocaleString("en-IN")}
                       </span>
                     )}
                     <span

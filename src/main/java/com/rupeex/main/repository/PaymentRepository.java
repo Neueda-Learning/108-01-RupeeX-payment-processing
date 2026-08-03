@@ -43,4 +43,5 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
             @Param("sourceAccount") String sourceAccount
     );
 
+    long countBySourceAccountAndStatus(String sourceAccount, PaymentStatus status);
 }
