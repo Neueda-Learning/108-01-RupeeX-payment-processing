@@ -3,6 +3,7 @@ import type {
   CreatePaymentInput,
   DashboardStats,
   Payment,
+  PaymentStatusHistoryEntry,
 } from "./types";
 import { mockAccounts, mockPayments, mockStats } from "./mock-data";
 
@@ -62,6 +63,16 @@ type BackendPayment = {
   errorCode?: string;
   createdAt?: string;
   updatedAt?: string;
+  errorMessage?: string;
+};
+
+type BackendPaymentHistory = {
+  id: number;
+  paymentId: number;
+  oldStatus?: string;
+  newStatus: string;
+  changedAt: string;
+  reason?: string;
 };
 
 type DashboardResponse = {
@@ -134,6 +145,39 @@ export async function createPayment(
   });
 
   return normalizePayment(created);
+}
+
+export async function getPaymentById(id: number): Promise<Payment> {
+  const payment = await request<BackendPayment>(`/payments/${id}`);
+  return normalizePayment(payment);
+}
+
+export async function retryPayment(id: number): Promise<Payment> {
+  const payment = await request<BackendPayment>(`/payments/${id}/retry`, {
+    method: "POST",
+  });
+  return normalizePayment(payment);
+}
+
+export async function cancelPayment(id: number): Promise<Payment> {
+  const payment = await request<BackendPayment>(`/payments/${id}/cancel`, {
+    method: "POST",
+  });
+  return normalizePayment(payment);
+}
+
+export async function getPaymentHistory(
+  id: number,
+): Promise<PaymentStatusHistoryEntry[]> {
+  const history = await request<BackendPaymentHistory[]>(`/payments/${id}/history`);
+  return history.map((row) => ({
+    id: row.id,
+    paymentId: row.paymentId,
+    oldStatus: row.oldStatus,
+    newStatus: row.newStatus,
+    changedAt: row.changedAt,
+    reason: row.reason,
+  }));
 }
 
 export async function getAccounts(): Promise<Account[]> {

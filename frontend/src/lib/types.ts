@@ -65,10 +65,10 @@ export interface Account {
 export interface PaymentStatusHistoryEntry {
   id: number;
   paymentId: number;
-  status: PaymentStatus | string;
+  oldStatus?: PaymentStatus | string;
+  newStatus: PaymentStatus | string;
   changedAt: string;
-  remarks?: string;
-  changedBy?: string;
+  reason?: string;
 }
 
 export interface DashboardStats {
