@@ -201,11 +201,14 @@ export function PaymentCreateForm({
   }, [defaultSourceAccount]);
 
   // Auto-set origin country from selected source account
-  useEffect(() => {
-    const src = accounts.find((a) => a.accountNumber === form.sourceAccount);
-    if (src?.countryCode)
-      setForm((f) => ({ ...f, originCountry: src.countryCode! }));
-  }, [form.sourceAccount, accounts]);
+  const handleSourceAccountChange = (accountNumber: string) => {
+    const src = accounts.find((a) => a.accountNumber === accountNumber);
+    setForm((f) => ({
+      ...f,
+      sourceAccount: accountNumber,
+      originCountry: src?.countryCode ?? f.originCountry,
+    }));
+  };
 
   const set =
     (field: keyof CreatePaymentInput) =>
@@ -253,7 +256,7 @@ export function PaymentCreateForm({
           </span>
           <select
             value={form.sourceAccount}
-            onChange={set("sourceAccount")}
+            onChange={(e) => handleSourceAccountChange(e.target.value)}
             required
             className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 outline-none ring-orange-500/30 focus:ring"
           >

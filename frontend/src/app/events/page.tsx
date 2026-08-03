@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Client } from "@stomp/stompjs";
-import SockJS from "sockjs-client";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { API_BASE_URL, getEvents } from "@/lib/api";
 import type { SystemEvent } from "@/lib/types";
 import { formatDateTime } from "@/lib/format";
@@ -19,67 +17,90 @@ function uniqueById(events: SystemEvent[]): SystemEvent[] {
   return output;
 }
 
+/** Convert http(s)://host to ws(s)://host for native WebSocket */
+function toWsUrl(base: string): string {
+  return base.replace(/^http/, "ws") + "/ws/events/websocket";
+}
+
 export default function EventsPage() {
   const [events, setEvents] = useState<SystemEvent[]>([]);
   const [socketConnected, setSocketConnected] = useState(false);
+  const wsRef = useRef<WebSocket | null>(null);
+  const stompSessionRef = useRef<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
 
+    // Load existing events from REST on mount
     getEvents()
-      .then((rows) => {
-        if (mounted) {
-          setEvents(rows);
+      .then((rows) => { if (mounted) setEvents(rows); })
+      .catch(() => { if (mounted) setEvents([]); });
+
+    // Use native WebSocket with STOMP framing to avoid SockJS /info polling
+    const wsUrl = toWsUrl(API_BASE_URL);
+
+    function connect() {
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        // STOMP CONNECT frame
+        ws.send("CONNECT\naccept-version:1.2\nheart-beat:0,0\n\n\0");
+      };
+
+      ws.onmessage = (e: MessageEvent<string>) => {
+        const frame = String(e.data);
+
+        if (frame.startsWith("CONNECTED")) {
+          if (mounted) setSocketConnected(true);
+          stompSessionRef.current = frame;
+          // Subscribe to /topic/events
+          ws.send("SUBSCRIBE\nid:sub-0\ndestination:/topic/events\n\n\0");
+          return;
         }
-      })
-      .catch(() => {
-        if (mounted) {
-          setEvents([]);
+
+        if (frame.startsWith("MESSAGE")) {
+          const bodyStart = frame.indexOf("\n\n");
+          if (bodyStart === -1) return;
+          const body = frame.slice(bodyStart + 2).replace(/\0$/, "");
+          try {
+            const payload = JSON.parse(body) as SystemEvent;
+            setEvents((prev) => uniqueById([payload, ...prev]).slice(0, 100));
+          } catch { /* ignore malformed frames */ }
         }
-      });
+      };
 
-    const client = new Client({
-      webSocketFactory: () => new SockJS(`${API_BASE_URL}/ws/events`),
-      reconnectDelay: 4000,
-      debug: () => undefined,
-    });
+      ws.onclose = () => {
+        if (mounted) {
+          setSocketConnected(false);
+          // Reconnect after 5s
+          setTimeout(() => { if (mounted) connect(); }, 5000);
+        }
+      };
 
-    client.onConnect = () => {
-      setSocketConnected(true);
-      client.subscribe("/topic/events", (message) => {
-        const payload = JSON.parse(message.body) as SystemEvent;
-        setEvents((current) => uniqueById([payload, ...current]).slice(0, 100));
-      });
-    };
+      ws.onerror = () => {
+        ws.close();
+      };
+    }
 
-    client.onStompError = () => {
-      setSocketConnected(false);
-    };
+    connect();
 
-    client.onWebSocketClose = () => {
-      setSocketConnected(false);
-    };
-
-    client.activate();
-
-    const polling = window.setInterval(async () => {
-      if (socketConnected) {
-        return;
-      }
+    // Polling fallback: refresh from REST every 10s when WS is down
+    const poll = window.setInterval(async () => {
+      if (socketConnected) return;
       try {
         const rows = await getEvents();
-        setEvents(rows);
-      } catch {
-        // Keep existing rows when polling fails.
-      }
-    }, 5000);
+        if (mounted) setEvents(rows);
+      } catch { /* keep existing rows */ }
+    }, 10000);
 
     return () => {
       mounted = false;
-      window.clearInterval(polling);
-      client.deactivate();
+      window.clearInterval(poll);
+      wsRef.current?.close();
     };
-  }, [socketConnected]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const connectionBadge = useMemo(
     () =>
