@@ -140,8 +140,8 @@ export default function AccountsPage() {
           Customer account profile
         </h1>
         <p className="text-slate-600">
-          Select an account to view its profile, payment history, and send a
-          new payment.
+          Select an account to view its profile, payment history, and send a new
+          payment.
         </p>
       </header>
 
@@ -164,7 +164,9 @@ export default function AccountsPage() {
           className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 sm:max-w-xl"
           value={selected?.accountNumber ?? ""}
           onChange={(e) => {
-            const acc = accounts.find((a) => a.accountNumber === e.target.value);
+            const acc = accounts.find(
+              (a) => a.accountNumber === e.target.value,
+            );
             setSelected(acc ?? null);
             setShowSend(false);
             setSendSuccess(null);
@@ -203,6 +205,11 @@ export default function AccountsPage() {
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
                       {selected.currency}
                     </span>
+                    {selected.balance != null && (
+                      <span className="rounded-full bg-orange-50 px-2 py-0.5 text-xs font-semibold text-orange-700 ring-1 ring-orange-200">
+                        Balance: {selected.currency} {Number(selected.balance).toLocaleString("en-IN")}
+                      </span>
+                    )}
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                         selected.status === "ACTIVE"

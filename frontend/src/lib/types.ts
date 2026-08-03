@@ -31,6 +31,7 @@ export interface Payment {
   reference?: string;
   status: PaymentStatus | string;
   errorCode?: string;
+  errorMessage?: string;
   idempotencyKey: string;
   createdAt: string;
   updatedAt: string;
@@ -52,6 +53,8 @@ export interface Account {
   accountHolder: string;
   accountType: string;
   currency: string;
+  countryCode?: string;
+  balance?: string | number;
   bankName?: string;
   bankCode?: string;
   ifscCode?: string;

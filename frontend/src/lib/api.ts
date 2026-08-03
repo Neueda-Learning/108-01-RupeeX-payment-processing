@@ -111,6 +111,7 @@ function normalizePayment(payment: BackendPayment): Payment {
     reference: payment.reference ?? payment.paymentReference,
     status: payment.status ?? "PENDING",
     errorCode: payment.errorCode,
+    errorMessage: payment.errorMessage,
     idempotencyKey: payment.idempotencyKey ?? "N/A",
     createdAt: payment.createdAt ?? new Date().toISOString(),
     updatedAt:
@@ -192,31 +193,7 @@ export async function getPaymentHistory(
 }
 
 export async function getAccounts(): Promise<Account[]> {
-  try {
-    return await request<Account[]>("/accounts");
-  } catch {
-    // If the dedicated accounts endpoint is unavailable, infer account
-    // identifiers from real payment traffic rather than synthetic data.
-    const payments = await getPayments();
-
-    const accountNumbers = new Set<string>();
-    for (const payment of payments) {
-      accountNumbers.add(payment.sourceAccount);
-      accountNumbers.add(payment.destinationAccount);
-    }
-
-    return Array.from(accountNumbers).map((accountNumber, index) => ({
-      id: index + 1,
-      accountNumber,
-      accountHolder: "Unknown Holder",
-      accountType: "CURRENT",
-      currency: "INR",
-      bankName: "RupeeX Core",
-      status: "ACTIVE",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }));
-  }
+  return await request<Account[]>("/accounts");
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {

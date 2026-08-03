@@ -170,10 +170,14 @@ export default function RulesPage() {
     const submittedForm: FraudRuleInput = { ...form };
     if (form.ruleType === "HIGH_RISK_COUNTRY") {
       if (selectedCountries.length === 0) {
-        setError("Please select at least one country for the High-Risk Country rule.");
+        setError(
+          "Please select at least one country for the High-Risk Country rule.",
+        );
         return;
       }
-      const clean = parseCountriesFromDescription(form.description).cleanDescription;
+      const clean = parseCountriesFromDescription(
+        form.description,
+      ).cleanDescription;
       submittedForm.description = `${clean}\n${COUNTRIES_MARKER}${selectedCountries.join(",")}]`;
       submittedForm.threshold = selectedCountries.length;
     }
@@ -273,11 +277,15 @@ export default function RulesPage() {
                 </span>
               </span>
               <p className="mb-2 text-xs text-slate-500">
-                Tick the countries whose transactions should be flagged. Sources are FATF grey/black lists and OFAC sanctions.
+                Tick the countries whose transactions should be flagged. Sources
+                are FATF grey/black lists and OFAC sanctions.
               </p>
               <div className="grid grid-cols-1 gap-1.5 rounded-lg border border-slate-200 bg-white p-3 sm:grid-cols-2 max-h-60 overflow-y-auto">
                 {HIGH_RISK_COUNTRIES.map(({ code, name, basis }) => (
-                  <label key={code} className="flex items-start gap-2 rounded p-1 hover:bg-slate-50 cursor-pointer">
+                  <label
+                    key={code}
+                    className="flex items-start gap-2 rounded p-1 hover:bg-slate-50 cursor-pointer"
+                  >
                     <input
                       type="checkbox"
                       className="mt-0.5 shrink-0"
@@ -286,14 +294,18 @@ export default function RulesPage() {
                         setSelectedCountries((prev) =>
                           e.target.checked
                             ? [...prev, code]
-                            : prev.filter((c) => c !== code)
+                            : prev.filter((c) => c !== code),
                         )
                       }
                     />
                     <span className="leading-snug">
                       <span className="font-medium text-slate-800">{name}</span>
-                      <span className="ml-1 text-slate-400 text-xs">({code})</span>
-                      <span className="block text-xs text-slate-400">{basis}</span>
+                      <span className="ml-1 text-slate-400 text-xs">
+                        ({code})
+                      </span>
+                      <span className="block text-xs text-slate-400">
+                        {basis}
+                      </span>
                     </span>
                   </label>
                 ))}

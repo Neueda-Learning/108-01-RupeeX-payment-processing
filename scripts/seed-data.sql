@@ -15,14 +15,14 @@ DELETE FROM fraud_rules WHERE name LIKE 'Large Transaction%' OR name LIKE 'Night
 DELETE FROM accounts WHERE account_number LIKE 'ACC-1000%';
 
 -- Seed accounts
-INSERT INTO accounts (account_number, account_holder, account_type, currency, country_code, status, created_at, updated_at)
+INSERT INTO accounts (account_number, account_holder, account_type, currency, country_code, balance, status, created_at, updated_at)
 VALUES
-  ('ACC-10001', 'Aarav Mehta', 'SAVINGS', 'INR', 'IN', 'ACTIVE', NOW(), NOW()),
-  ('ACC-10002', 'Priya Sharma', 'CURRENT', 'INR', 'IN', 'ACTIVE', NOW(), NOW()),
-  ('ACC-10003', 'Neo Retail Pvt Ltd', 'CURRENT', 'INR', 'IN', 'ACTIVE', NOW(), NOW()),
-  ('ACC-10004', 'Zen Imports LLC', 'CURRENT', 'USD', 'US', 'ACTIVE', NOW(), NOW()),
-  ('ACC-10005', 'Lina Das', 'SAVINGS', 'INR', 'IN', 'ACTIVE', NOW(), NOW()),
-  ('ACC-10006', 'Atlas Logistics', 'CURRENT', 'INR', 'IN', 'ACTIVE', NOW(), NOW());
+  ('ACC-10001', 'Aarav Mehta',        'SAVINGS',  'INR', 'IN', 125000.00, 'ACTIVE', NOW(), NOW()),
+  ('ACC-10002', 'Priya Sharma',       'CURRENT',  'INR', 'IN', 340000.00, 'ACTIVE', NOW(), NOW()),
+  ('ACC-10003', 'Neo Retail Pvt Ltd', 'CURRENT',  'INR', 'IN', 870000.00, 'ACTIVE', NOW(), NOW()),
+  ('ACC-10004', 'Zen Imports LLC',    'CURRENT',  'USD', 'US',  48000.00, 'ACTIVE', NOW(), NOW()),
+  ('ACC-10005', 'Lina Das',           'SAVINGS',  'INR', 'IN',  62500.00, 'ACTIVE', NOW(), NOW()),
+  ('ACC-10006', 'Atlas Logistics',    'CURRENT',  'INR', 'IN', 215000.00, 'ACTIVE', NOW(), NOW());
 
 -- Seed fraud rules
 INSERT INTO fraud_rules (name, description, rule_type, threshold, score_contribution, enabled, created_at, updated_at)
