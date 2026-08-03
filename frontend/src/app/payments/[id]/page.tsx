@@ -253,6 +253,184 @@ export default function PaymentDetailPage() {
         </div>
       </section>
 
+      {/* Risk Score & Fraud Detection */}
+      {(payment.riskScore || payment.fraudResults?.length) && (
+        <section className="space-y-4">
+          {/* Risk Score Card */}
+          {payment.riskScore && (
+            <div
+              className={`panel rounded-2xl p-6 border-l-4 ${
+                payment.riskScore.score >= 81
+                  ? "border-l-red-500 bg-red-50"
+                  : payment.riskScore.score >= 50
+                    ? "border-l-orange-500 bg-orange-50"
+                    : "border-l-emerald-500 bg-emerald-50"
+              }`}
+            >
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    Total Risk Score
+                  </p>
+                  <p
+                    className={`mt-2 text-4xl font-bold ${
+                      payment.riskScore.score >= 81
+                        ? "text-red-700"
+                        : payment.riskScore.score >= 50
+                          ? "text-orange-700"
+                          : "text-emerald-700"
+                    }`}
+                  >
+                    {payment.riskScore.score}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-600">out of 100</p>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    Risk Category
+                  </p>
+                  <p
+                    className={`mt-2 inline-flex rounded-full px-3 py-1 text-sm font-semibold ${
+                      payment.riskScore.score >= 81
+                        ? "bg-red-200 text-red-800"
+                        : payment.riskScore.score >= 50
+                          ? "bg-orange-200 text-orange-800"
+                          : "bg-emerald-200 text-emerald-800"
+                    }`}
+                  >
+                    {payment.riskScore.category}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    Decision
+                  </p>
+                  <p
+                    className={`mt-2 inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-semibold ${
+                      payment.riskScore.decision === "Manual Review"
+                        ? "bg-red-100 text-red-700"
+                        : "bg-emerald-100 text-emerald-700"
+                    }`}
+                  >
+                    {payment.riskScore.decision === "Manual Review" ? (
+                      <>
+                        <span>⚠️</span> Manual Review Required
+                      </>
+                    ) : (
+                      <>
+                        <span>✓</span> Auto Process
+                      </>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {payment.riskScore.explanation && (
+                <div className="mt-4 border-t border-slate-300/50 pt-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    Explanation
+                  </p>
+                  <p className="mt-2 text-sm text-slate-700">
+                    {payment.riskScore.explanation}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Fraud Flags */}
+          {payment.fraudResults && payment.fraudResults.length > 0 && (
+            <div className="panel rounded-2xl p-6">
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-slate-900">
+                  Fraud Rule Evaluation
+                </h3>
+                <p className="mt-0.5 text-sm text-slate-600">
+                  {payment.fraudResults.filter((f) => f.triggered).length} rule
+                  {payment.fraudResults.filter((f) => f.triggered).length !== 1
+                    ? "s"
+                    : ""}{" "}
+                  triggered
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                {payment.fraudResults.map((fraud) => (
+                  <div
+                    key={fraud.id}
+                    className={`flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between ${
+                      fraud.triggered
+                        ? "border-red-200 bg-red-50"
+                        : "border-slate-200 bg-slate-50"
+                    }`}
+                  >
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`text-sm font-semibold ${
+                            fraud.triggered
+                              ? "text-red-700"
+                              : "text-slate-700"
+                          }`}
+                        >
+                          {fraud.ruleName}
+                        </span>
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                            fraud.triggered
+                              ? "bg-red-200 text-red-700"
+                              : "bg-slate-200 text-slate-700"
+                          }`}
+                        >
+                          {fraud.triggered ? "🚩 TRIGGERED" : "✓ Passed"}
+                        </span>
+                      </div>
+                      {fraud.reason && (
+                        <p className="mt-1 text-xs text-slate-600">
+                          {fraud.reason}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-semibold uppercase text-slate-500">
+                        Score
+                      </p>
+                      <p
+                        className={`mt-0.5 text-lg font-bold ${
+                          fraud.triggered
+                            ? "text-red-600"
+                            : "text-slate-400"
+                        }`}
+                      >
+                        {fraud.triggered ? "+" : ""}
+                        {fraud.scoreContribution}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Score Breakdown */}
+              <div className="mt-4 border-t border-slate-200 pt-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-semibold text-slate-900">
+                    Total Score
+                  </span>
+                  <span className="text-xl font-bold text-slate-900">
+                    {payment.fraudResults
+                      .filter((f) => f.triggered)
+                      .reduce((sum, f) => sum + f.scoreContribution, 0)}{" "}
+                    points
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
       {/* Pipeline stepper */}
       <section className="panel rounded-2xl p-6">
         <h2 className="text-lg font-semibold text-slate-900">
