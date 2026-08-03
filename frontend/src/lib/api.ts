@@ -9,7 +9,6 @@ import type {
   PaymentStatusHistoryEntry,
   SystemEvent,
 } from "./types";
-import { mockAccounts, mockPayments, mockStats } from "./mock-data";
 
 /**
  * Base URL of the RupeeX Spring Boot backend, resolved server-side.
@@ -43,7 +42,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!res.ok) {
-    throw new ApiError(`Request to ${path} failed`, res.status);
+    let detail = `Request to ${path} failed`;
+    try {
+      const payload = (await res.json()) as { detail?: string; message?: string };
+      detail = payload.detail ?? payload.message ?? detail;
+    } catch {
+      // Ignore parse error and keep fallback message.
+    }
+    throw new ApiError(detail, res.status);
   }
 
   return (await res.json()) as T;
@@ -109,19 +115,13 @@ function normalizePayment(payment: BackendPayment): Payment {
 
 /**
  * Fetches recent payments from the backend.
- * Falls back to demo data if the API is unreachable (e.g. during
- * local frontend-only development before controllers are wired up).
  */
 export async function getPayments(): Promise<Payment[]> {
-  try {
-    const response = await request<
-      PaginatedResponse<BackendPayment> | BackendPayment[]
-    >("/payments");
-    const rows = Array.isArray(response) ? response : response.content;
-    return rows.map(normalizePayment);
-  } catch {
-    return mockPayments;
-  }
+  const response = await request<
+    PaginatedResponse<BackendPayment> | BackendPayment[]
+  >("/payments");
+  const rows = Array.isArray(response) ? response : response.content;
+  return rows.map(normalizePayment);
 }
 
 export async function createPayment(
@@ -190,10 +190,9 @@ export async function getAccounts(): Promise<Account[]> {
   try {
     return await request<Account[]>("/accounts");
   } catch {
+    // If the dedicated accounts endpoint is unavailable, infer account
+    // identifiers from real payment traffic rather than synthetic data.
     const payments = await getPayments();
-    if (payments.length === 0) {
-      return mockAccounts;
-    }
 
     const accountNumbers = new Set<string>();
     for (const payment of payments) {
@@ -216,32 +215,32 @@ export async function getAccounts(): Promise<Account[]> {
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {
-  try {
-    const [dashboard, metrics] = await Promise.all([
-      request<DashboardResponse>("/dashboard"),
-      request<MetricsResponse>("/metrics"),
-    ]);
+  const [dashboard, metrics, payments] = await Promise.all([
+    request<DashboardResponse>("/dashboard"),
+    request<MetricsResponse>("/metrics"),
+    getPayments(),
+  ]);
 
-    const totalPayments = dashboard.paymentsToday ?? metrics.totalPayments ?? 0;
+  const totalPayments = dashboard.paymentsToday ?? metrics.totalPayments ?? 0;
 
-    const successRateRaw =
-      dashboard.successRate ??
-      (metrics.totalPayments && metrics.totalPayments > 0
-        ? ((metrics.successfulPayments ?? 0) / metrics.totalPayments) * 100
-        : 0);
+  const successRateRaw =
+    dashboard.successRate ??
+    (metrics.totalPayments && metrics.totalPayments > 0
+      ? ((metrics.successfulPayments ?? 0) / metrics.totalPayments) * 100
+      : 0);
 
-    const successRate =
-      successRateRaw > 1 ? successRateRaw / 100 : successRateRaw;
+  const successRate = successRateRaw > 1 ? successRateRaw / 100 : successRateRaw;
+  const totalVolume = payments.reduce((sum, payment) => {
+    const value = Number.parseFloat(payment.amount);
+    return sum + (Number.isFinite(value) ? value : 0);
+  }, 0);
 
-    return {
-      totalVolume: totalPayments,
-      totalPayments,
-      successRate,
-      activeAccounts: 0,
-    };
-  } catch {
-    return mockStats;
-  }
+  return {
+    totalVolume,
+    totalPayments,
+    successRate,
+    activeAccounts: new Set(payments.map((payment) => payment.sourceAccount)).size,
+  };
 }
 
 export async function getEvents(): Promise<SystemEvent[]> {
@@ -252,7 +251,9 @@ export async function getFraudRules(): Promise<FraudRule[]> {
   return request<FraudRule[]>("/fraud/rules");
 }
 
-export async function createFraudRule(input: FraudRuleInput): Promise<FraudRule> {
+export async function createFraudRule(
+  input: FraudRuleInput,
+): Promise<FraudRule> {
   return request<FraudRule>("/fraud/rules", {
     method: "POST",
     body: JSON.stringify(input),
@@ -276,11 +277,7 @@ export async function deleteFraudRule(id: number): Promise<void> {
 }
 
 export async function getDeadLetterQueue(): Promise<DeadLetterEntry[]> {
-  try {
-    return await request<DeadLetterEntry[]>("/dlq");
-  } catch {
-    return [];
-  }
+  return request<DeadLetterEntry[]>("/dlq");
 }
 
 export { ApiError };
