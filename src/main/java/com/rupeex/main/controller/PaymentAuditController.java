@@ -11,7 +11,7 @@ import java.util.List;
 
 
 @RestController
-@RequestMapping("/payments")
+@RequestMapping("/audit")
 public class PaymentAuditController {
 
 
@@ -26,8 +26,8 @@ public class PaymentAuditController {
 
 
 
-    // Get payment history
-    @GetMapping("/{paymentId}/history")
+    // Get payment audit logs
+    @GetMapping("/payments/{paymentId}/logs")
     public List<PaymentHistory> getPaymentHistory(
             @PathVariable Long paymentId) {
 
