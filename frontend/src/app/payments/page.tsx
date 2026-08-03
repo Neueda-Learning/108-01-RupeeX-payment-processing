@@ -35,14 +35,14 @@ export default function PaymentsPage() {
     <div className="mx-auto max-w-7xl space-y-8 px-6 py-10 lg:px-8">
       <header className="space-y-2">
         <p className="text-sm font-semibold uppercase tracking-wide text-emerald-600">
-          Payment Console
+          Payments Workspace
         </p>
         <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-          Create and monitor payments
+          Create a payment and track lifecycle status
         </h1>
         <p className="text-slate-600 dark:text-slate-300">
-          Submit new payments and follow their lifecycle from validation to
-          settlement.
+          Use this screen to submit transactions and monitor status updates for
+          each payment.
         </p>
       </header>
 
@@ -53,7 +53,7 @@ export default function PaymentsPage() {
       <section className="rounded-2xl border border-black/5 bg-white shadow-sm dark:border-white/10 dark:bg-slate-900">
         <div className="border-b border-black/5 px-6 py-4 dark:border-white/10">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-            Recent payments
+            Payment list
           </h2>
         </div>
 
@@ -62,12 +62,12 @@ export default function PaymentsPage() {
             <thead className="bg-slate-50 dark:bg-slate-800/50">
               <tr>
                 {[
-                  "Payment",
-                  "Route",
+                  "Payment Label",
+                  "Source -> Destination",
                   "Amount",
-                  "Status",
-                  "Updated",
-                  "Details",
+                  "Current Status",
+                  "Last Updated",
+                  "Open Details",
                 ].map((header) => (
                   <th
                     key={header}

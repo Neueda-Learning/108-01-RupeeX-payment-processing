@@ -1,23 +1,24 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const displaySans = Space_Grotesk({
+  variable: "--font-display-sans",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const plexMono = IBM_Plex_Mono({
+  variable: "--font-plex-mono",
+  weight: ["400", "500"],
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "RupeeX | Payment Processing Platform",
+  title: "RupeeX | Payment Operations Console",
   description:
-    "RupeeX manages the full lifecycle of financial payments — creation, validation, processing, and completion — with a full audit trail.",
+    "RupeeX gives operations teams clear views for admin, source account, and destination account payment flows.",
 };
 
 export default function RootLayout({
@@ -28,9 +29,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${displaySans.variable} ${plexMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <body className="min-h-full flex flex-col text-slate-900">
         <Navbar />
         <main className="flex-1">{children}</main>
         <Footer />
