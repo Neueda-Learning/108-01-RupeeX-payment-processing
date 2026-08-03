@@ -20,8 +20,8 @@ public class NotificationEngineService {
         NotificationRecord record = new NotificationRecord();
         record.setPaymentId(paymentId);
         record.setType(type);
-        record.setPayload(payload);
+        record.setPayload(payload != null ? payload : "");
         notificationRecordRepository.save(record);
-        systemEventService.emit(type, paymentId, payload);
+        systemEventService.emit(type, paymentId, payload != null ? payload : "");
     }
 }

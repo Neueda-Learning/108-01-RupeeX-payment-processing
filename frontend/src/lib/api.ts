@@ -64,6 +64,26 @@ type PaginatedResponse<T> = {
   content: T[];
 };
 
+type BackendFraudResult = {
+  id?: number;
+  paymentId?: number;
+  ruleId?: number;
+  ruleName?: string;
+  triggered?: boolean;
+  scoreContribution?: number;
+  reason?: string;
+};
+
+type BackendRiskScore = {
+  id?: number;
+  paymentId?: number;
+  score?: number;
+  category?: string;
+  explanation?: string;
+  decision?: string;
+  createdAt?: string;
+};
+
 type BackendPayment = {
   id?: number;
   paymentId?: number;
@@ -79,6 +99,8 @@ type BackendPayment = {
   createdAt?: string;
   updatedAt?: string;
   errorMessage?: string;
+  riskScore?: BackendRiskScore;
+  fraudResults?: BackendFraudResult[];
 };
 
 type BackendPaymentHistory = {
@@ -111,10 +133,33 @@ function normalizePayment(payment: BackendPayment): Payment {
     reference: payment.reference ?? payment.paymentReference,
     status: payment.status ?? "PENDING",
     errorCode: payment.errorCode,
+    errorMessage: payment.errorMessage,
     idempotencyKey: payment.idempotencyKey ?? "N/A",
     createdAt: payment.createdAt ?? new Date().toISOString(),
     updatedAt:
       payment.updatedAt ?? payment.createdAt ?? new Date().toISOString(),
+    riskScore: payment.riskScore
+      ? {
+          id: payment.riskScore.id ?? 0,
+          paymentId: payment.riskScore.paymentId ?? 0,
+          score: payment.riskScore.score ?? 0,
+          category: payment.riskScore.category ?? "UNKNOWN",
+          explanation: payment.riskScore.explanation ?? "",
+          decision: payment.riskScore.decision ?? "Auto Process",
+          createdAt: payment.riskScore.createdAt ?? new Date().toISOString(),
+        }
+      : undefined,
+    fraudResults: payment.fraudResults
+      ? payment.fraudResults.map((fr) => ({
+          id: fr.id ?? 0,
+          paymentId: fr.paymentId ?? 0,
+          ruleId: fr.ruleId ?? 0,
+          ruleName: fr.ruleName ?? "Unknown Rule",
+          triggered: fr.triggered ?? false,
+          scoreContribution: fr.scoreContribution ?? 0,
+          reason: fr.reason ?? "",
+        }))
+      : undefined,
   };
 }
 
@@ -192,31 +237,7 @@ export async function getPaymentHistory(
 }
 
 export async function getAccounts(): Promise<Account[]> {
-  try {
-    return await request<Account[]>("/accounts");
-  } catch {
-    // If the dedicated accounts endpoint is unavailable, infer account
-    // identifiers from real payment traffic rather than synthetic data.
-    const payments = await getPayments();
-
-    const accountNumbers = new Set<string>();
-    for (const payment of payments) {
-      accountNumbers.add(payment.sourceAccount);
-      accountNumbers.add(payment.destinationAccount);
-    }
-
-    return Array.from(accountNumbers).map((accountNumber, index) => ({
-      id: index + 1,
-      accountNumber,
-      accountHolder: "Unknown Holder",
-      accountType: "CURRENT",
-      currency: "INR",
-      bankName: "RupeeX Core",
-      status: "ACTIVE",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }));
-  }
+  return await request<Account[]>("/accounts");
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {

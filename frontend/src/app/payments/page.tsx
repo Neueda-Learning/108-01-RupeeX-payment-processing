@@ -63,8 +63,9 @@ export default function PaymentsPage() {
                   "Payment Label",
                   "Source -> Destination",
                   "Amount",
+                  "Risk Score",
                   "Current Status",
-                  "Last Updated",
+                  "Created",
                   "Open Details",
                 ].map((header) => (
                   <th
@@ -80,7 +81,7 @@ export default function PaymentsPage() {
               {loading ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-6 py-8 text-center text-sm text-slate-500"
                   >
                     Loading payments...
@@ -89,7 +90,7 @@ export default function PaymentsPage() {
               ) : payments.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-6 py-8 text-center text-sm text-slate-500"
                   >
                     No payments found.
@@ -115,17 +116,41 @@ export default function PaymentsPage() {
                       {formatCurrency(payment.amount, payment.currency)}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4">
+                      {payment.riskScore ? (
+                        <div className="flex flex-col gap-1">
+                          <span
+                            className={`inline-flex w-fit rounded-full px-2 py-0.5 text-xs font-bold ${
+                              payment.riskScore.score >= 81
+                                ? "bg-red-100 text-red-700"
+                                : payment.riskScore.score >= 50
+                                  ? "bg-orange-100 text-orange-700"
+                                  : "bg-emerald-100 text-emerald-700"
+                            }`}
+                          >
+                            {payment.riskScore.score}
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            {payment.riskScore.decision === "Manual Review"
+                              ? "⚠️ Manual"
+                              : "✓ Auto"}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-400">—</span>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4">
                       <StatusBadge status={payment.status} />
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-500">
-                      {formatDateTime(payment.updatedAt)}
+                      {formatDateTime(payment.createdAt)}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm">
                       <Link
                         href={`/payments/${payment.id}`}
                         className="font-medium text-orange-700 hover:text-orange-800"
                       >
-                        Open
+                        Details
                       </Link>
                     </td>
                   </tr>

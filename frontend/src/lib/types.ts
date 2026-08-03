@@ -22,6 +22,26 @@ export type PaymentStatus =
 
 export type AccountStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED" | "CLOSED";
 
+export interface FraudResultDetail {
+  id: number;
+  paymentId: number;
+  ruleId: number;
+  ruleName: string;
+  triggered: boolean;
+  scoreContribution: number;
+  reason: string;
+}
+
+export interface RiskScoreDetail {
+  id: number;
+  paymentId: number;
+  score: number;
+  category: string;
+  explanation: string;
+  decision: string; // "Auto Process" or "Manual Review"
+  createdAt: string;
+}
+
 export interface Payment {
   id: number;
   amount: string; // BigDecimal serialized as string/number by Jackson
@@ -31,9 +51,12 @@ export interface Payment {
   reference?: string;
   status: PaymentStatus | string;
   errorCode?: string;
+  errorMessage?: string;
   idempotencyKey: string;
   createdAt: string;
   updatedAt: string;
+  riskScore?: RiskScoreDetail;
+  fraudResults?: FraudResultDetail[];
 }
 
 export interface CreatePaymentInput {
@@ -52,6 +75,8 @@ export interface Account {
   accountHolder: string;
   accountType: string;
   currency: string;
+  countryCode?: string;
+  balance?: string | number;
   bankName?: string;
   bankCode?: string;
   ifscCode?: string;
