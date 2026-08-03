@@ -1,90 +1,5 @@
--- RupeeX Payment Processing Database Schema
--- This file documents the database structure
--- Note: Tables will be auto-created by Hibernate on application startup
--- (see spring.jpa.hibernate.ddl-auto=update in application.properties)
-
--- ============================================================================
--- 1. PAYMENTS TABLE
--- ============================================================================
--- Stores all payment transactions
---
--- Field              Purpose                          Type
--- id                 Unique payment identifier        BIGINT (Auto-increment)
--- amount             Payment amount                   DECIMAL(19,4)
--- currency           ISO 4217 Currency Code           VARCHAR(3)
--- source_account     Sender account identifier        VARCHAR(255)
--- destination_account Receiver account identifier     VARCHAR(255)
--- reference          Payment description/reference    VARCHAR(500)
--- status             Current payment state            VARCHAR(50)
--- error_code         Failure reason (if failed)       VARCHAR(100)
--- idempotency_key    Unique key for duplicate prevention VARCHAR(100)
--- created_at         Transaction creation timestamp   DATETIME
--- updated_at         Transaction last updated         DATETIME
---
--- Possible Status Values: PENDING, INITIATED, PROCESSING, COMPLETED, FAILED, CANCELLED
-
-CREATE TABLE IF NOT EXISTS payments (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    amount DECIMAL(19, 4) NOT NULL,
-    currency VARCHAR(3) NOT NULL,
-    source_account VARCHAR(255) NOT NULL,
-    destination_account VARCHAR(255) NOT NULL,
-    reference VARCHAR(500),
-    status VARCHAR(50) NOT NULL,
-    error_code VARCHAR(100),
-    idempotency_key VARCHAR(100) NOT NULL UNIQUE,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_status (status),
-    INDEX idx_created_at (created_at),
-    INDEX idx_idempotency_key (idempotency_key)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================================
--- 2. PAYMENT_STATUS_HISTORY TABLE
--- ============================================================================
--- Tracks all status changes for each payment (audit trail)
---
--- Field              Purpose                          Type
--- id                 Unique history record ID         BIGINT (Auto-increment)
--- payment_id         Reference to payments.id         BIGINT
--- status             The status at this moment        VARCHAR(50)
--- changed_at         When the status changed          DATETIME
--- remarks            Additional notes/comments        VARCHAR(500)
--- changed_by         Who/what system changed it       VARCHAR(100)
-
-CREATE TABLE IF NOT EXISTS payment_status_history (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    payment_id BIGINT NOT NULL,
-    status VARCHAR(50) NOT NULL,
-    changed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    remarks VARCHAR(500),
-    changed_by VARCHAR(100),
-    INDEX idx_payment_id (payment_id),
-    INDEX idx_changed_at (changed_at),
-    FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================================
--- 3. ACCOUNTS TABLE
--- ============================================================================
--- Stores all bank accounts (both source and destination)
--- Can represent sender/receiver accounts in the system
---
--- Field              Purpose                          Type
--- id                 Unique account identifier        BIGINT (Auto-increment)
--- account_number     Account number                   VARCHAR(100) UNIQUE
--- account_holder     Account holder name              VARCHAR(255)
--- account_type       Account type (SAVINGS/CHECKING)  VARCHAR(50)
--- currency           Account currency (ISO 4217)      VARCHAR(3)
--- bank_name          Bank name                        VARCHAR(100)
--- bank_code          Bank code/routing number         VARCHAR(20)
--- ifsc_code          IFSC code (India Standard)       VARCHAR(50)
--- swift_code         SWIFT code (International)       VARCHAR(50)
--- status             Account status (ACTIVE/INACTIVE) VARCHAR(50)
--- metadata           Additional JSON metadata         VARCHAR(500)
--- created_at         Account creation timestamp       DATETIME
--- updated_at         Account last updated             DATETIME
+-- Payment Processing & Risk Intelligence Platform
+-- MySQL normalized reference schema
 
 CREATE TABLE IF NOT EXISTS accounts (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -92,76 +7,138 @@ CREATE TABLE IF NOT EXISTS accounts (
     account_holder VARCHAR(255) NOT NULL,
     account_type VARCHAR(50) NOT NULL,
     currency VARCHAR(3) NOT NULL,
-    bank_name VARCHAR(100),
-    bank_code VARCHAR(20),
-    ifsc_code VARCHAR(50),
-    swift_code VARCHAR(50),
+    country_code VARCHAR(2),
     status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE',
-    metadata VARCHAR(500),
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_account_number (account_number),
-    INDEX idx_status (status),
-    INDEX idx_created_at (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
 
--- ============================================================================
--- REFERENCE DATA & EXAMPLES
--- ============================================================================
-
--- Example: Insert sample accounts
--- INSERT INTO accounts (account_number, account_holder, account_type, currency, bank_name, ifsc_code, status)
--- VALUES
---   ('ACC001001', 'John Doe', 'SAVINGS', 'INR', 'HDFC Bank', 'HDFC0001234', 'ACTIVE'),
---   ('ACC002001', 'Jane Smith', 'CHECKING', 'INR', 'ICICI Bank', 'ICIC0002345', 'ACTIVE');
-
--- Example: Insert sample payment
--- INSERT INTO payments (amount, currency, source_account, destination_account, reference, status, idempotency_key)
--- VALUES (5000.00, 'INR', 'ACC001001', 'ACC002001', 'Monthly salary transfer', 'PENDING', UUID());
-
--- Example: Insert payment status history
--- INSERT INTO payment_status_history (payment_id, status, remarks, changed_by)
--- VALUES (1, 'PENDING', 'Payment queued for processing', 'SYSTEM');
-
-
--- ============================================================================
--- 4. CUSTOMER_TRUST_PROFILES TABLE
--- ============================================================================
--- Stores adaptive trust scores for each customer/source account
-
-CREATE TABLE IF NOT EXISTS customer_trust_profiles (
+CREATE TABLE IF NOT EXISTS payments (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    customer_id VARCHAR(255) NOT NULL UNIQUE,
-    currency_change_score DOUBLE NOT NULL DEFAULT 0.5,
-    large_payment_score DOUBLE NOT NULL DEFAULT 0.5,
-    rapid_payments_score DOUBLE NOT NULL DEFAULT 0.5,
+    payment_reference VARCHAR(128) NOT NULL UNIQUE,
+    amount DECIMAL(19,2) NOT NULL,
+    currency VARCHAR(3) NOT NULL,
+    source_account VARCHAR(100) NOT NULL,
+    destination_account VARCHAR(100) NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    error_code VARCHAR(100),
+    error_message VARCHAR(1000),
+    idempotency_key VARCHAR(128) NOT NULL UNIQUE,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_customer_id (customer_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    INDEX idx_payments_status (status),
+    INDEX idx_payments_created_at (created_at)
+) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS payment_history (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    payment_id BIGINT NOT NULL,
+    old_status VARCHAR(50),
+    new_status VARCHAR(50) NOT NULL,
+    reason VARCHAR(1000),
+    changed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_payment_history_payment_id (payment_id),
+    CONSTRAINT fk_payment_history_payment FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
 
--- ============================================================================
--- 5. PAYMENT_VERIFICATIONS TABLE
--- ============================================================================
--- Stores verification records for payments that fall below the trust threshold
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    payment_id BIGINT,
+    service VARCHAR(120) NOT NULL,
+    action VARCHAR(255) NOT NULL,
+    before_state VARCHAR(50),
+    after_state VARCHAR(50),
+    processing_time_ms BIGINT,
+    reason VARCHAR(1000),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_audit_payment_id (payment_id),
+    CONSTRAINT fk_audit_payment FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS payment_verifications (
+CREATE TABLE IF NOT EXISTS fraud_rules (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(120) NOT NULL UNIQUE,
+    description VARCHAR(1000) NOT NULL,
+    rule_type VARCHAR(80) NOT NULL,
+    threshold DOUBLE NOT NULL DEFAULT 0,
+    score_contribution INT NOT NULL,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS fraud_results (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    payment_id BIGINT NOT NULL,
+    rule_id BIGINT NOT NULL,
+    rule_name VARCHAR(120) NOT NULL,
+    triggered BOOLEAN NOT NULL,
+    score_contribution INT NOT NULL,
+    reason VARCHAR(1000) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_fraud_payment_id (payment_id),
+    CONSTRAINT fk_fraud_result_payment FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE CASCADE,
+    CONSTRAINT fk_fraud_result_rule FOREIGN KEY (rule_id) REFERENCES fraud_rules(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS risk_scores (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     payment_id BIGINT NOT NULL UNIQUE,
-    customer_id VARCHAR(255) NOT NULL,
-    verification_token VARCHAR(255) NOT NULL UNIQUE,
-    trust_score_at_decision DOUBLE NOT NULL,
-    currency_change_triggered BOOLEAN NOT NULL,
-    large_payment_triggered BOOLEAN NOT NULL,
-    rapid_payments_triggered BOOLEAN NOT NULL,
-    status VARCHAR(50) NOT NULL,
-    customer_email VARCHAR(255),
+    score INT NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    explanation VARCHAR(2000) NOT NULL,
+    decision VARCHAR(100) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_risk_payment FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS processing_queue (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    payment_id BIGINT NOT NULL UNIQUE,
+    status VARCHAR(40) NOT NULL,
+    retry_count INT NOT NULL DEFAULT 0,
+    next_attempt_at DATETIME NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_payment_verification_payment_id (payment_id),
-    INDEX idx_payment_verification_customer_id (customer_id),
-    FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    CONSTRAINT fk_queue_payment FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS dead_letter_queue (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    payment_id BIGINT NOT NULL UNIQUE,
+    reason VARCHAR(1000) NOT NULL,
+    last_retry_count INT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_dlq_payment FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS notifications (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    payment_id BIGINT,
+    type VARCHAR(80) NOT NULL,
+    payload VARCHAR(2000) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_notification_payment FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS payment_metrics (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    metric_name VARCHAR(100) NOT NULL,
+    metric_value DOUBLE NOT NULL,
+    recorded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS system_events (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    event_type VARCHAR(120) NOT NULL,
+    entity_id BIGINT,
+    payload VARCHAR(2000) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+INSERT IGNORE INTO fraud_rules (name, description, rule_type, threshold, score_contribution, enabled)
+VALUES
+('Large Transaction', 'Flags transactions above threshold', 'LARGE_TRANSACTION', 20000, 30, TRUE),
+('Night Transaction', 'Flags late-night transactions', 'NIGHT_TRANSACTION', 0, 10, TRUE),
+('Velocity Check', 'Flags burst transactions in short window', 'VELOCITY_CHECK', 10, 20, TRUE),
+('High Risk Country', 'Flags origin from sanctioned/high-risk countries', 'HIGH_RISK_COUNTRY', 0, 15, TRUE);
