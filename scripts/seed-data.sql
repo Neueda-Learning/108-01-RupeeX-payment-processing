@@ -1,8 +1,20 @@
--- RupeeX seed data (idempotent)
--- Safe to run multiple times.
+-- RupeeX seed data (clean & idempotent)
+-- Deletes previous seed data and rebuilds from scratch to avoid conflicts
 
 START TRANSACTION;
 
+-- Clean up previous seed data (identify by payment_reference prefix)
+DELETE FROM risk_scores WHERE payment_id IN (SELECT id FROM payments WHERE payment_reference LIKE 'SEED-PAY-%');
+DELETE FROM dead_letter_queue WHERE payment_id IN (SELECT id FROM payments WHERE payment_reference LIKE 'SEED-PAY-%');
+DELETE FROM processing_queue WHERE payment_id IN (SELECT id FROM payments WHERE payment_reference LIKE 'SEED-PAY-%');
+DELETE FROM payment_history WHERE payment_id IN (SELECT id FROM payments WHERE payment_reference LIKE 'SEED-PAY-%');
+DELETE FROM notifications WHERE payment_id IN (SELECT id FROM payments WHERE payment_reference LIKE 'SEED-PAY-%');
+DELETE FROM system_events WHERE entity_id IN (SELECT id FROM payments WHERE payment_reference LIKE 'SEED-PAY-%');
+DELETE FROM payments WHERE payment_reference LIKE 'SEED-PAY-%';
+DELETE FROM fraud_rules WHERE name LIKE 'Large Transaction%' OR name LIKE 'Night Transaction%' OR name LIKE 'Velocity Check%' OR name LIKE 'High Risk Country%' OR name LIKE 'Repeated Failed%';
+DELETE FROM accounts WHERE account_number LIKE 'ACC-1000%';
+
+-- Seed accounts
 INSERT INTO accounts (account_number, account_holder, account_type, currency, country_code, status, created_at, updated_at)
 VALUES
   ('ACC-10001', 'Aarav Mehta', 'SAVINGS', 'INR', 'IN', 'ACTIVE', NOW(), NOW()),
@@ -10,126 +22,67 @@ VALUES
   ('ACC-10003', 'Neo Retail Pvt Ltd', 'CURRENT', 'INR', 'IN', 'ACTIVE', NOW(), NOW()),
   ('ACC-10004', 'Zen Imports LLC', 'CURRENT', 'USD', 'US', 'ACTIVE', NOW(), NOW()),
   ('ACC-10005', 'Lina Das', 'SAVINGS', 'INR', 'IN', 'ACTIVE', NOW(), NOW()),
-  ('ACC-10006', 'Atlas Logistics', 'CURRENT', 'INR', 'IN', 'ACTIVE', NOW(), NOW())
-ON DUPLICATE KEY UPDATE
-  account_holder = VALUES(account_holder),
-  account_type = VALUES(account_type),
-  currency = VALUES(currency),
-  country_code = VALUES(country_code),
-  status = VALUES(status),
-  updated_at = CURRENT_TIMESTAMP;
+  ('ACC-10006', 'Atlas Logistics', 'CURRENT', 'INR', 'IN', 'ACTIVE', NOW(), NOW());
 
+-- Seed fraud rules
 INSERT INTO fraud_rules (name, description, rule_type, threshold, score_contribution, enabled, created_at, updated_at)
 VALUES
   ('Large Transaction', 'Flags transactions above threshold', 'LARGE_TRANSACTION', 20000, 30, TRUE, NOW(), NOW()),
   ('Night Transaction', 'Flags late-night transactions', 'NIGHT_TRANSACTION', 0, 10, TRUE, NOW(), NOW()),
   ('Velocity Check', 'Flags burst transactions in short window', 'VELOCITY_CHECK', 10, 20, TRUE, NOW(), NOW()),
   ('High Risk Country', 'Flags origin from sanctioned/high-risk countries', 'HIGH_RISK_COUNTRY', 0, 15, TRUE, NOW(), NOW()),
-  ('Repeated Failed Attempts', 'Flags repeated failed attempts', 'REPEATED_FAILED_ATTEMPTS', 3, 25, TRUE, NOW(), NOW())
-ON DUPLICATE KEY UPDATE
-  description = VALUES(description),
-  rule_type = VALUES(rule_type),
-  threshold = VALUES(threshold),
-  score_contribution = VALUES(score_contribution),
-  enabled = VALUES(enabled),
-  updated_at = CURRENT_TIMESTAMP;
+  ('Repeated Failed Attempts', 'Flags repeated failed attempts', 'REPEATED_FAILED_ATTEMPTS', 3, 25, TRUE, NOW(), NOW());
 
+-- Seed payments (QUEUED and PROCESSING for testing, SENT/SETTLED for completed flows)
+-- Note: SETTLED cannot be CANCELLED per PaymentStateMachine - only CREATED/QUEUED/PROCESSING can be
 INSERT INTO payments
   (payment_reference, amount, currency, source_account, destination_account, status, error_code, error_message, idempotency_key, created_at, updated_at)
 VALUES
-  ('SEED-PAY-1001', 1500.00, 'INR', 'ACC-10001', 'ACC-10003', 'SETTLED', NULL, NULL, 'seed-idem-1001', NOW(), NOW()),
+  ('SEED-PAY-1001', 1500.00, 'INR', 'ACC-10001', 'ACC-10003', 'QUEUED', NULL, NULL, 'seed-idem-1001', NOW(), NOW()),
   ('SEED-PAY-1002', 42000.00, 'INR', 'ACC-10002', 'ACC-10006', 'QUEUED', NULL, NULL, 'seed-idem-1002', NOW(), NOW()),
-  ('SEED-PAY-1003', 980000.00, 'INR', 'ACC-10003', 'ACC-10005', 'FAILED', 'RISK_BLOCKED', 'Blocked by risk policy', 'seed-idem-1003', NOW(), NOW()),
+  ('SEED-PAY-1003', 980000.00, 'INR', 'ACC-10003', 'ACC-10005', 'PROCESSING', NULL, NULL, 'seed-idem-1003', NOW(), NOW()),
   ('SEED-PAY-1004', 15500.75, 'USD', 'ACC-10004', 'ACC-10002', 'PROCESSING', NULL, NULL, 'seed-idem-1004', NOW(), NOW()),
-  ('SEED-PAY-1005', 8750.00, 'INR', 'ACC-10005', 'ACC-10001', 'SETTLED', NULL, NULL, 'seed-idem-1005', NOW(), NOW()),
-  ('SEED-PAY-1006', 2300.00, 'INR', 'ACC-10006', 'ACC-10002', 'SENT', NULL, NULL, 'seed-idem-1006', NOW(), NOW())
-ON DUPLICATE KEY UPDATE
-  amount = VALUES(amount),
-  currency = VALUES(currency),
-  source_account = VALUES(source_account),
-  destination_account = VALUES(destination_account),
-  status = VALUES(status),
-  error_code = VALUES(error_code),
-  error_message = VALUES(error_message),
-  updated_at = CURRENT_TIMESTAMP;
+  ('SEED-PAY-1005', 8750.00, 'INR', 'ACC-10005', 'ACC-10001', 'SENT', NULL, NULL, 'seed-idem-1005', NOW(), NOW()),
+  ('SEED-PAY-1006', 2300.00, 'INR', 'ACC-10006', 'ACC-10002', 'FAILED', 'RISK_BLOCKED', 'Blocked by risk policy', 'seed-idem-1006', NOW(), NOW());
+
+-- Seed payment history for traceability
+INSERT INTO payment_history (payment_id, old_status, new_status, reason, changed_at)
+SELECT p.id, 'CREATED', 'QUEUED', 'Payment queued for processing', NOW()
+FROM payments p WHERE p.payment_reference = 'SEED-PAY-1001';
 
 INSERT INTO payment_history (payment_id, old_status, new_status, reason, changed_at)
-SELECT p.id, 'CREATED', 'CREATED', 'Seeded payment', NOW()
-FROM payments p
-WHERE p.payment_reference = 'SEED-PAY-1001'
-  AND NOT EXISTS (
-    SELECT 1 FROM payment_history h
-    WHERE h.payment_id = p.id AND h.new_status = 'CREATED'
-  );
+SELECT p.id, 'CREATED', 'QUEUED', 'Payment queued for processing', NOW()
+FROM payments p WHERE p.payment_reference = 'SEED-PAY-1002';
 
 INSERT INTO payment_history (payment_id, old_status, new_status, reason, changed_at)
-SELECT p.id, 'CREATED', 'SETTLED', 'Seeded as completed payment', NOW()
-FROM payments p
-WHERE p.payment_reference = 'SEED-PAY-1001'
-  AND NOT EXISTS (
-    SELECT 1 FROM payment_history h
-    WHERE h.payment_id = p.id AND h.new_status = 'SETTLED'
-  );
+SELECT p.id, 'CREATED', 'PROCESSING', 'Payment processing', NOW()
+FROM payments p WHERE p.payment_reference = 'SEED-PAY-1003';
 
 INSERT INTO payment_history (payment_id, old_status, new_status, reason, changed_at)
-SELECT p.id, 'PROCESSING', 'FAILED', 'Seeded as failed payment for DLQ/testing', NOW()
-FROM payments p
-WHERE p.payment_reference = 'SEED-PAY-1003'
-  AND NOT EXISTS (
-    SELECT 1 FROM payment_history h
-    WHERE h.payment_id = p.id AND h.new_status = 'FAILED'
-  );
+SELECT p.id, 'CREATED', 'PROCESSING', 'Payment processing', NOW()
+FROM payments p WHERE p.payment_reference = 'SEED-PAY-1004';
 
+INSERT INTO payment_history (payment_id, old_status, new_status, reason, changed_at)
+SELECT p.id, 'CREATED', 'SENT', 'Payment sent to beneficiary', NOW()
+FROM payments p WHERE p.payment_reference = 'SEED-PAY-1005';
+
+INSERT INTO payment_history (payment_id, old_status, new_status, reason, changed_at)
+SELECT p.id, 'CREATED', 'FAILED', 'Payment failed at validation', NOW()
+FROM payments p WHERE p.payment_reference = 'SEED-PAY-1006';
+
+-- Seed processing queue for QUEUED payments
 INSERT INTO processing_queue (payment_id, status, retry_count, next_attempt_at, created_at, updated_at)
-SELECT p.id, 'READY', 1, DATE_ADD(NOW(), INTERVAL 15 SECOND), NOW(), NOW()
-FROM payments p
-WHERE p.payment_reference = 'SEED-PAY-1002'
-ON DUPLICATE KEY UPDATE
-  status = VALUES(status),
-  retry_count = VALUES(retry_count),
-  next_attempt_at = VALUES(next_attempt_at),
-  updated_at = CURRENT_TIMESTAMP;
+SELECT p.id, 'READY', 0, DATE_ADD(NOW(), INTERVAL 5 SECOND), NOW(), NOW()
+FROM payments p WHERE p.payment_reference IN ('SEED-PAY-1001', 'SEED-PAY-1002');
 
+-- Seed dead-letter queue for failed payment
 INSERT INTO dead_letter_queue (payment_id, reason, last_retry_count, created_at)
-SELECT p.id, 'Exceeded retry limit (seed sample)', 3, NOW()
-FROM payments p
-WHERE p.payment_reference = 'SEED-PAY-1003'
-ON DUPLICATE KEY UPDATE
-  reason = VALUES(reason),
-  last_retry_count = VALUES(last_retry_count);
+SELECT p.id, 'Failed at validation stage', 0, NOW()
+FROM payments p WHERE p.payment_reference = 'SEED-PAY-1006';
 
+-- Seed risk score only for high-risk payment
 INSERT INTO risk_scores (payment_id, score, category, explanation, decision, created_at)
-SELECT p.id, 78, 'HIGH', 'Large amount and suspicious pattern (seed sample)', 'MANUAL_REVIEW', NOW()
-FROM payments p
-WHERE p.payment_reference = 'SEED-PAY-1003'
-ON DUPLICATE KEY UPDATE
-  score = VALUES(score),
-  category = VALUES(category),
-  explanation = VALUES(explanation),
-  decision = VALUES(decision);
-
-INSERT INTO notifications (payment_id, type, payload, created_at)
-SELECT p.id, 'PAYMENT_CREATED', '{"paymentReference":"SEED-PAY-1002","status":"QUEUED"}', NOW()
-FROM payments p
-WHERE p.payment_reference = 'SEED-PAY-1002'
-  AND NOT EXISTS (
-    SELECT 1 FROM notifications n
-    WHERE n.payment_id = p.id AND n.type = 'PAYMENT_CREATED'
-  );
-
-INSERT INTO system_events (event_type, entity_id, payload, created_at)
-SELECT 'PAYMENT_SEEDED', p.id, CONCAT('{"paymentReference":"', p.payment_reference, '","status":"', p.status, '"}'), NOW()
-FROM payments p
-WHERE p.payment_reference IN ('SEED-PAY-1001', 'SEED-PAY-1002', 'SEED-PAY-1003')
-  AND NOT EXISTS (
-    SELECT 1 FROM system_events e
-    WHERE e.entity_id = p.id AND e.event_type = 'PAYMENT_SEEDED'
-  );
-
-INSERT INTO payment_metrics (metric_name, metric_value, recorded_at)
-VALUES
-  ('seed.total_payments', 6, NOW()),
-  ('seed.failed_payments', 1, NOW()),
-  ('seed.queued_payments', 1, NOW());
+SELECT p.id, 45, 'MEDIUM', 'Large amount flagged by fraud rules', 'REVIEW_PENDING', NOW()
+FROM payments p WHERE p.payment_reference = 'SEED-PAY-1003';
 
 COMMIT;
