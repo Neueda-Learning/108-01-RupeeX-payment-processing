@@ -64,6 +64,7 @@ export default function PaymentsPage() {
                   "Source -> Destination",
                   "Amount",
                   "Current Status",
+                  "Created",
                   "Last Updated",
                   "Open Details",
                 ].map((header) => (
@@ -116,6 +117,9 @@ export default function PaymentsPage() {
                     </td>
                     <td className="whitespace-nowrap px-6 py-4">
                       <StatusBadge status={payment.status} />
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-500">
+                      {formatDateTime(payment.createdAt)}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-500">
                       {formatDateTime(payment.updatedAt)}

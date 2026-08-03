@@ -6,12 +6,11 @@ import { Menu, X, ShieldCheck } from "lucide-react";
 
 const NAV_LINKS = [
   { href: "/", label: "Home" },
-  { href: "/admin", label: "Admin View" },
-  { href: "/source", label: "Source Account View" },
-  { href: "/destination", label: "Destination Account View" },
+  { href: "/admin", label: "Admin" },
+  { href: "/accounts", label: "Accounts" },
   { href: "/payments", label: "Payments" },
-  { href: "/events", label: "Events" },
   { href: "/rules", label: "Fraud Rules" },
+  { href: "/events", label: "Events" },
   { href: "/dlq", label: "DLQ" },
 ];
 
