@@ -1,6 +1,9 @@
 import type {
   Account,
   CreatePaymentInput,
+  DeadLetterEntry,
+  FraudRule,
+  FraudRuleInput,
   DashboardStats,
   Payment,
   PaymentStatusHistoryEntry,
@@ -243,6 +246,41 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
 export async function getEvents(): Promise<SystemEvent[]> {
   return request<SystemEvent[]>("/events");
+}
+
+export async function getFraudRules(): Promise<FraudRule[]> {
+  return request<FraudRule[]>("/fraud/rules");
+}
+
+export async function createFraudRule(input: FraudRuleInput): Promise<FraudRule> {
+  return request<FraudRule>("/fraud/rules", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateFraudRule(
+  id: number,
+  input: FraudRuleInput,
+): Promise<FraudRule> {
+  return request<FraudRule>(`/fraud/rules/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteFraudRule(id: number): Promise<void> {
+  await request(`/fraud/rules/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function getDeadLetterQueue(): Promise<DeadLetterEntry[]> {
+  try {
+    return await request<DeadLetterEntry[]>("/dlq");
+  } catch {
+    return [];
+  }
 }
 
 export { ApiError };

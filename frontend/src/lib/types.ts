@@ -85,3 +85,33 @@ export interface SystemEvent {
   payload: string;
   createdAt: string;
 }
+
+export type FraudRuleType =
+  | "LARGE_TRANSACTION"
+  | "NIGHT_TRANSACTION"
+  | "VELOCITY_CHECK"
+  | "REPEATED_FAILED_ATTEMPTS"
+  | "BLACKLISTED_ACCOUNT"
+  | "HIGH_RISK_COUNTRY"
+  | "NEW_ACCOUNT"
+  | "SUSPICIOUS_FREQUENCY";
+
+export interface FraudRule {
+  id: number;
+  name: string;
+  description: string;
+  ruleType: FraudRuleType;
+  threshold: number;
+  scoreContribution: number;
+  enabled: boolean;
+}
+
+export type FraudRuleInput = Omit<FraudRule, "id">;
+
+export interface DeadLetterEntry {
+  id: number;
+  paymentId: number;
+  reason: string;
+  lastRetryCount: number;
+  createdAt?: string;
+}
