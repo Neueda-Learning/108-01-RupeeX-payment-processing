@@ -122,7 +122,7 @@ public class Payment {
 
         if(this.status == null){
 
-            this.status = PaymentStatus.INITIATED;
+            this.status = PaymentStatus.CREATED;
 
         }
 
@@ -330,7 +330,7 @@ public class Payment {
 
     public void markAsSuccess(){
 
-        this.status = PaymentStatus.SUCCESS;
+        this.status = PaymentStatus.SETTLED;
 
         this.errorCode = null;
 

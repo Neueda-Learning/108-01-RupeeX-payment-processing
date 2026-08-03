@@ -111,7 +111,7 @@ export default async function Home() {
       <Section
         id="features"
         eyebrow="Why RupeeX"
-        title="Built for enterprise payment operations"
+        title="Built for large-scale payment operations"
         description="A robust foundation for teams that need reliability, traceability, and control."
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
