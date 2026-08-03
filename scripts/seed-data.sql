@@ -4,14 +4,15 @@
 START TRANSACTION;
 
 -- Clean up previous seed data (identify by payment_reference prefix)
-DELETE FROM risk_scores WHERE payment_id IN (SELECT id FROM payments WHERE payment_reference LIKE 'SEED-PAY-%');
-DELETE FROM dead_letter_queue WHERE payment_id IN (SELECT id FROM payments WHERE payment_reference LIKE 'SEED-PAY-%');
-DELETE FROM processing_queue WHERE payment_id IN (SELECT id FROM payments WHERE payment_reference LIKE 'SEED-PAY-%');
-DELETE FROM payment_history WHERE payment_id IN (SELECT id FROM payments WHERE payment_reference LIKE 'SEED-PAY-%');
-DELETE FROM notifications WHERE payment_id IN (SELECT id FROM payments WHERE payment_reference LIKE 'SEED-PAY-%');
-DELETE FROM system_events WHERE entity_id IN (SELECT id FROM payments WHERE payment_reference LIKE 'SEED-PAY-%');
-DELETE FROM payments WHERE payment_reference LIKE 'SEED-PAY-%';
-DELETE FROM fraud_rules WHERE name LIKE 'Large Transaction%' OR name LIKE 'Night Transaction%' OR name LIKE 'Velocity Check%' OR name LIKE 'High Risk Country%' OR name LIKE 'Repeated Failed%';
+DELETE FROM risk_scores WHERE payment_id IN (SELECT id FROM payments WHERE payment_reference LIKE 'SEED-PAY-%' OR payment_reference LIKE 'EP-%');
+DELETE FROM fraud_results WHERE payment_id IN (SELECT id FROM payments WHERE payment_reference LIKE 'SEED-PAY-%' OR payment_reference LIKE 'EP-%');
+DELETE FROM dead_letter_queue WHERE payment_id IN (SELECT id FROM payments WHERE payment_reference LIKE 'SEED-PAY-%' OR payment_reference LIKE 'EP-%');
+DELETE FROM processing_queue WHERE payment_id IN (SELECT id FROM payments WHERE payment_reference LIKE 'SEED-PAY-%' OR payment_reference LIKE 'EP-%');
+DELETE FROM payment_history WHERE payment_id IN (SELECT id FROM payments WHERE payment_reference LIKE 'SEED-PAY-%' OR payment_reference LIKE 'EP-%');
+DELETE FROM notifications WHERE payment_id IN (SELECT id FROM payments WHERE payment_reference LIKE 'SEED-PAY-%' OR payment_reference LIKE 'EP-%');
+DELETE FROM system_events WHERE entity_id IN (SELECT id FROM payments WHERE payment_reference LIKE 'SEED-PAY-%' OR payment_reference LIKE 'EP-%');
+DELETE FROM payments WHERE payment_reference LIKE 'SEED-PAY-%' OR payment_reference LIKE 'EP-%';
+DELETE FROM fraud_rules;
 DELETE FROM accounts WHERE account_number LIKE 'ACC-1000%';
 
 -- Seed accounts
@@ -24,14 +25,82 @@ VALUES
   ('ACC-10005', 'Lina Das',           'SAVINGS',  'INR', 'IN',  62500.00, 'ACTIVE', NOW(), NOW()),
   ('ACC-10006', 'Atlas Logistics',    'CURRENT',  'INR', 'IN', 215000.00, 'ACTIVE', NOW(), NOW());
 
--- Seed fraud rules
+-- ============================================================================
+-- FRAUD RULES CONFIGURATION - All 7 Rule Types with Proper Settings
+-- ============================================================================
+
+-- Rule 1: LARGE_TRANSACTION
+-- Threshold: Amount in currency (anything > 20,000 INR triggers rule)
+-- When: Any transaction exceeding this amount
+-- Score: 30 points (Medium-High risk)
+-- Description: Captures high-value transactions for additional scrutiny
 INSERT INTO fraud_rules (name, description, rule_type, threshold, score_contribution, enabled, created_at, updated_at)
 VALUES
-  ('Large Transaction', 'Flags transactions above threshold', 'LARGE_TRANSACTION', 20000, 30, TRUE, NOW(), NOW()),
-  ('Night Transaction', 'Flags late-night transactions', 'NIGHT_TRANSACTION', 0, 10, TRUE, NOW(), NOW()),
-  ('Velocity Check', 'Flags burst transactions in short window', 'VELOCITY_CHECK', 10, 20, TRUE, NOW(), NOW()),
-  ('High Risk Country', 'Flags origin from sanctioned/high-risk countries', 'HIGH_RISK_COUNTRY', 0, 15, TRUE, NOW(), NOW()),
-  ('Repeated Failed Attempts', 'Flags repeated failed attempts', 'REPEATED_FAILED_ATTEMPTS', 3, 25, TRUE, NOW(), NOW());
+  ('RULE-001: Large Transaction', 'Detects transactions exceeding 20000 INR. High-value transfers warrant additional verification. Threshold: 20000. Score: 30.', 'LARGE_TRANSACTION', 20000.0, 30, TRUE, NOW(), NOW());
+
+-- Rule 2: NIGHT_TRANSACTION
+-- Threshold: 0 (N/A - time-based, always evaluates)
+-- When: 22:00 to 06:00 local time
+-- Score: 10 points (Low risk)
+-- Description: Off-hours transactions may indicate compromised accounts
+INSERT INTO fraud_rules (name, description, rule_type, threshold, score_contribution, enabled, created_at, updated_at)
+VALUES
+  ('RULE-002: Night Transaction', 'Detects transactions between 22:00 and 06:00. Off-hours activity may indicate account compromise. Threshold: N/A. Score: 10.', 'NIGHT_TRANSACTION', 0.0, 10, TRUE, NOW(), NOW());
+
+-- Rule 3: VELOCITY_CHECK
+-- Threshold: 5 (maximum 5 transactions allowed in 10-minute window)
+-- When: Account attempts 5+ transactions in any 10-minute period
+-- Score: 20 points (Medium risk)
+-- Description: Detects burst/rapid activity patterns typical of account takeover
+INSERT INTO fraud_rules (name, description, rule_type, threshold, score_contribution, enabled, created_at, updated_at)
+VALUES
+  ('RULE-003: Velocity Check', 'Detects burst transactions - more than 5 per 10 minutes from same account. Indicates rapid fraudulent activity. Threshold: 5. Score: 20.', 'VELOCITY_CHECK', 5.0, 20, TRUE, NOW(), NOW());
+
+-- Rule 4: REPEATED_FAILED_ATTEMPTS
+-- Threshold: 3 (flag when 3+ failures detected)
+-- When: Account has 3 or more failed payment attempts
+-- Score: 25 points (Medium-High risk)
+-- Description: Multiple failures may indicate credential guessing or system abuse
+INSERT INTO fraud_rules (name, description, rule_type, threshold, score_contribution, enabled, created_at, updated_at)
+VALUES
+  ('RULE-004: Repeated Failed Attempts', 'Detects accounts with 3+ consecutive failed payment attempts. May indicate credential compromise or system abuse. Threshold: 3. Score: 25.', 'REPEATED_FAILED_ATTEMPTS', 3.0, 25, TRUE, NOW(), NOW());
+
+-- Rule 5: BLACKLISTED_ACCOUNT
+-- Threshold: 0 (N/A - list-based check)
+-- Blocked Accounts: BLK-FRAUD-001, BLK-FRAUD-002, BLK-SANCTION-101, BLK-MONEY-LAUND-001, BLK-COMPLIANCE-FAIL, BLK-SCAM-RING-05
+-- When: Source OR destination account matches any blocked account
+-- Score: 50 points (Critical/Automatic block)
+-- Format: Comma-separated account numbers in description
+INSERT INTO fraud_rules (name, description, rule_type, threshold, score_contribution, enabled, created_at, updated_at)
+VALUES
+  ('RULE-005: Blacklisted Account', 'BLK-FRAUD-001,BLK-FRAUD-002,BLK-SANCTION-101,BLK-MONEY-LAUND-001,BLK-COMPLIANCE-FAIL,BLK-SCAM-RING-05,BLK-TERROR-FINANCING,BLOCKED-ACCOUNT-999', 'BLACKLISTED_ACCOUNT', 0.0, 50, TRUE, NOW(), NOW());
+
+-- Rule 6: HIGH_RISK_COUNTRY
+-- Threshold: 0 (N/A - country-based check)
+-- High-Risk Countries: KP (North Korea), IR (Iran), SY (Syria), CU (Cuba), ZW (Zimbabwe), MM (Myanmar), VE (Venezuela), BY (Belarus)
+-- When: Source OR destination account's country code matches high-risk list
+-- Score: 35 points (High risk)
+-- Format: [Countries:CC1,CC2,CC3,...] in description (ISO 2-letter country codes)
+INSERT INTO fraud_rules (name, description, rule_type, threshold, score_contribution, enabled, created_at, updated_at)
+VALUES
+  ('RULE-006: High Risk Country', '[Countries:KP,IR,SY,CU,ZW,MM,VE,BY]', 'HIGH_RISK_COUNTRY', 0.0, 35, TRUE, NOW(), NOW());
+
+-- Rule 7: NEW_ACCOUNT
+-- Threshold: 30 (account age limit in days - flag accounts created within 30 days)
+-- When: Payment originates from account created within last 30 days
+-- Score: 15 points (Low-Medium risk)
+-- Description: New accounts are higher risk as they may be created for fraud
+INSERT INTO fraud_rules (name, description, rule_type, threshold, score_contribution, enabled, created_at, updated_at)
+VALUES
+  ('RULE-007: New Account', 'Detects transactions from recently created accounts (within 30 days). New accounts may be fraudulent. Threshold: 30 days. Score: 15.', 'NEW_ACCOUNT', 30.0, 15, TRUE, NOW(), NOW());
+
+-- Optional Rule 8: SUSPICIOUS_FREQUENCY (Disabled by default - complements VELOCITY_CHECK)
+-- Threshold: 3 (flag if 3+ transactions per hour)
+-- When: Account exceeds 3 transactions in any 1-hour window
+-- Score: 15 points (Low-Medium risk)
+INSERT INTO fraud_rules (name, description, rule_type, threshold, score_contribution, enabled, created_at, updated_at)
+VALUES
+  ('RULE-008: Suspicious Frequency', 'Detects high frequency transactions - more than 3 per hour. Complements velocity check. Threshold: 3/hour. Score: 15. (Optional)', 'SUSPICIOUS_FREQUENCY', 3.0, 15, FALSE, NOW(), NOW());
 
 -- Seed payments (QUEUED and PROCESSING for testing, SENT/SETTLED for completed flows)
 -- Note: SETTLED cannot be CANCELLED per PaymentStateMachine - only CREATED/QUEUED/PROCESSING can be
