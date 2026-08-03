@@ -5,8 +5,16 @@
  */
 
 export type PaymentStatus =
+  | "CREATED"
+  | "VALIDATED"
+  | "RISK_ANALYZED"
+  | "FRAUD_CHECKED"
+  | "QUEUED"
   | "PENDING"
   | "PROCESSING"
+  | "SENT"
+  | "SETTLED"
+  | "SUCCESS"
   | "COMPLETED"
   | "FAILED"
   | "CANCELLED"
@@ -26,6 +34,16 @@ export interface Payment {
   idempotencyKey: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface CreatePaymentInput {
+  amount: number;
+  currency: string;
+  sourceAccount: string;
+  destinationAccount: string;
+  originCountry: string;
+  destinationCountry: string;
+  idempotencyKey?: string;
 }
 
 export interface Account {

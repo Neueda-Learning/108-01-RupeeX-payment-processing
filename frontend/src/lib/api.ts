@@ -1,4 +1,9 @@
-import type { Account, DashboardStats, Payment } from "./types";
+import type {
+  Account,
+  CreatePaymentInput,
+  DashboardStats,
+  Payment,
+} from "./types";
 import { mockAccounts, mockPayments, mockStats } from "./mock-data";
 
 /**
@@ -39,6 +44,54 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
+type PaginatedResponse<T> = {
+  content: T[];
+};
+
+type BackendPayment = {
+  id?: number;
+  paymentId?: number;
+  amount: string | number;
+  currency: string;
+  sourceAccount: string;
+  destinationAccount: string;
+  status: string;
+  paymentReference?: string;
+  reference?: string;
+  idempotencyKey?: string;
+  errorCode?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+type DashboardResponse = {
+  paymentsToday?: number;
+  successRate?: number;
+};
+
+type MetricsResponse = {
+  totalPayments?: number;
+  successfulPayments?: number;
+  failedPayments?: number;
+};
+
+function normalizePayment(payment: BackendPayment): Payment {
+  return {
+    id: payment.id ?? payment.paymentId ?? 0,
+    amount: String(payment.amount ?? "0"),
+    currency: payment.currency ?? "INR",
+    sourceAccount: payment.sourceAccount ?? "N/A",
+    destinationAccount: payment.destinationAccount ?? "N/A",
+    reference: payment.reference ?? payment.paymentReference,
+    status: payment.status ?? "PENDING",
+    errorCode: payment.errorCode,
+    idempotencyKey: payment.idempotencyKey ?? "N/A",
+    createdAt: payment.createdAt ?? new Date().toISOString(),
+    updatedAt:
+      payment.updatedAt ?? payment.createdAt ?? new Date().toISOString(),
+  };
+}
+
 /**
  * Fetches recent payments from the backend.
  * Falls back to demo data if the API is unreachable (e.g. during
@@ -46,23 +99,96 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
  */
 export async function getPayments(): Promise<Payment[]> {
   try {
-    return await request<Payment[]>("/api/payments");
+    const response = await request<
+      PaginatedResponse<BackendPayment> | BackendPayment[]
+    >("/payments");
+    const rows = Array.isArray(response) ? response : response.content;
+    return rows.map(normalizePayment);
   } catch {
     return mockPayments;
   }
 }
 
+export async function createPayment(
+  input: CreatePaymentInput,
+): Promise<Payment> {
+  const idempotencyKey =
+    input.idempotencyKey ??
+    (typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `idem-${Date.now()}`);
+
+  const payload = {
+    amount: input.amount,
+    currency: input.currency,
+    sourceAccount: input.sourceAccount,
+    destinationAccount: input.destinationAccount,
+    originCountry: input.originCountry,
+    destinationCountry: input.destinationCountry,
+    idempotencyKey,
+  };
+
+  const created = await request<BackendPayment>("/payments", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+  return normalizePayment(created);
+}
+
 export async function getAccounts(): Promise<Account[]> {
   try {
-    return await request<Account[]>("/api/accounts");
+    return await request<Account[]>("/accounts");
   } catch {
-    return mockAccounts;
+    const payments = await getPayments();
+    if (payments.length === 0) {
+      return mockAccounts;
+    }
+
+    const accountNumbers = new Set<string>();
+    for (const payment of payments) {
+      accountNumbers.add(payment.sourceAccount);
+      accountNumbers.add(payment.destinationAccount);
+    }
+
+    return Array.from(accountNumbers).map((accountNumber, index) => ({
+      id: index + 1,
+      accountNumber,
+      accountHolder: "Unknown Holder",
+      accountType: "CURRENT",
+      currency: "INR",
+      bankName: "RupeeX Core",
+      status: "ACTIVE",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }));
   }
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {
   try {
-    return await request<DashboardStats>("/api/dashboard/stats");
+    const [dashboard, metrics] = await Promise.all([
+      request<DashboardResponse>("/dashboard"),
+      request<MetricsResponse>("/metrics"),
+    ]);
+
+    const totalPayments = dashboard.paymentsToday ?? metrics.totalPayments ?? 0;
+
+    const successRateRaw =
+      dashboard.successRate ??
+      (metrics.totalPayments && metrics.totalPayments > 0
+        ? ((metrics.successfulPayments ?? 0) / metrics.totalPayments) * 100
+        : 0);
+
+    const successRate =
+      successRateRaw > 1 ? successRateRaw / 100 : successRateRaw;
+
+    return {
+      totalVolume: totalPayments,
+      totalPayments,
+      successRate,
+      activeAccounts: 0,
+    };
   } catch {
     return mockStats;
   }

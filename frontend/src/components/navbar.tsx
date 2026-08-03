@@ -5,10 +5,11 @@ import { useState } from "react";
 import { Menu, X, ShieldCheck } from "lucide-react";
 
 const NAV_LINKS = [
-  { href: "#dashboard", label: "Dashboard" },
-  { href: "#payments", label: "Payments" },
-  { href: "#accounts", label: "Accounts" },
-  { href: "#features", label: "Features" },
+  { href: "/", label: "Dashboard" },
+  { href: "/payments", label: "Payments" },
+  { href: "/events", label: "Events" },
+  { href: "/rules", label: "Rules" },
+  { href: "/dlq", label: "DLQ" },
 ];
 
 export function Navbar() {
@@ -28,13 +29,13 @@ export function Navbar() {
 
         <div className="hidden items-center gap-8 md:flex">
           {NAV_LINKS.map((link) => (
-            <a
+            <Link
               key={link.href}
               href={link.href}
               className="text-sm font-medium text-slate-600 transition hover:text-emerald-600 dark:text-slate-300 dark:hover:text-emerald-400"
             >
               {link.label}
-            </a>
+            </Link>
           ))}
         </div>
 
@@ -58,14 +59,14 @@ export function Navbar() {
         <div className="border-t border-black/5 px-6 py-4 md:hidden dark:border-white/10">
           <div className="flex flex-col gap-4">
             {NAV_LINKS.map((link) => (
-              <a
+              <Link
                 key={link.href}
                 href={link.href}
                 onClick={() => setOpen(false)}
                 className="text-sm font-medium text-slate-600 dark:text-slate-300"
               >
                 {link.label}
-              </a>
+              </Link>
             ))}
           </div>
         </div>
