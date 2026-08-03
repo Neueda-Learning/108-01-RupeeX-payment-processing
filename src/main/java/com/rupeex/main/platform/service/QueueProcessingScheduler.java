@@ -46,7 +46,7 @@ public class QueueProcessingScheduler {
         this.baseDelayMs = baseDelayMs;
     }
 
-    @Scheduled(fixedDelay = 1000)
+    @Scheduled(fixedDelayString = "${payment.processing.queue-poll-interval-ms:1000}")
     @Transactional
     public void processQueue() {
         List<ProcessingQueueEntry> entries = processingQueueRepository.findReadyEntries("READY", LocalDateTime.now());

@@ -84,8 +84,8 @@ export default function EventsPage() {
   const connectionBadge = useMemo(
     () =>
       socketConnected
-        ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-        : "bg-amber-500/10 text-amber-700 dark:text-amber-400",
+        ? "bg-emerald-500/10 text-emerald-700"
+        : "bg-amber-500/10 text-amber-700",
     [socketConnected],
   );
 
@@ -93,13 +93,13 @@ export default function EventsPage() {
     <div className="mx-auto max-w-6xl space-y-6 px-6 py-10 lg:px-8">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-emerald-600">
+          <p className="text-sm font-semibold uppercase tracking-wide text-orange-700">
             Live Event Feed
           </p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+          <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">
             Operational event stream
           </h1>
-          <p className="text-slate-600 dark:text-slate-300">
+          <p className="text-slate-600">
             Real-time updates for payment progress, retries, failures, and risk
             alerts.
           </p>
@@ -111,29 +111,29 @@ export default function EventsPage() {
         </span>
       </header>
 
-      <section className="rounded-2xl border border-black/5 bg-white shadow-sm dark:border-white/10 dark:bg-slate-900">
-        <div className="divide-y divide-black/5 dark:divide-white/10">
+      <section className="panel rounded-2xl overflow-hidden">
+        <div className="divide-y divide-black/5">
           {events.length === 0 ? (
-            <div className="px-6 py-8 text-sm text-slate-500 dark:text-slate-400">
+            <div className="px-6 py-8 text-sm text-slate-500">
               No events yet.
             </div>
           ) : (
             events.map((event) => (
               <article key={event.id} className="px-6 py-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                  <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
                     {event.eventType}
                   </span>
-                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                  <span className="text-xs text-slate-500">
                     {formatDateTime(event.createdAt)}
                   </span>
                   {typeof event.entityId === "number" && (
-                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                    <span className="text-xs text-slate-500">
                       Payment #{event.entityId}
                     </span>
                   )}
                 </div>
-                <pre className="mt-2 overflow-x-auto whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-xs text-slate-700 dark:bg-slate-950 dark:text-slate-300">
+                <pre className="mt-2 overflow-x-auto whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-xs text-slate-700">
                   {event.payload}
                 </pre>
               </article>

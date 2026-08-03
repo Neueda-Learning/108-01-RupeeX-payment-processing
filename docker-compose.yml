@@ -15,7 +15,17 @@ services:
     ports:
       - "3306:3306"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root}"]
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u",
+          "root",
+          "-p${MYSQL_ROOT_PASSWORD:-root}",
+        ]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -49,6 +59,8 @@ services:
       # Uses the docker-compose service name `app`, resolvable on the
       # internal compose network.
       API_BASE_URL: ${FRONTEND_API_BASE_URL:-http://app:8080}
+      # Browser-side base URL used by client components.
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8081}
       PORT: 3000
     ports:
       - "8000:3000"
