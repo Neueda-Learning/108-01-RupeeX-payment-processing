@@ -77,3 +77,11 @@ export interface DashboardStats {
   successRate: number;
   activeAccounts: number;
 }
+
+export interface SystemEvent {
+  id: number;
+  eventType: string;
+  entityId?: number;
+  payload: string;
+  createdAt: string;
+}

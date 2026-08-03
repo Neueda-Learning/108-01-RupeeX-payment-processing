@@ -4,6 +4,7 @@ import type {
   DashboardStats,
   Payment,
   PaymentStatusHistoryEntry,
+  SystemEvent,
 } from "./types";
 import { mockAccounts, mockPayments, mockStats } from "./mock-data";
 
@@ -169,7 +170,9 @@ export async function cancelPayment(id: number): Promise<Payment> {
 export async function getPaymentHistory(
   id: number,
 ): Promise<PaymentStatusHistoryEntry[]> {
-  const history = await request<BackendPaymentHistory[]>(`/payments/${id}/history`);
+  const history = await request<BackendPaymentHistory[]>(
+    `/payments/${id}/history`,
+  );
   return history.map((row) => ({
     id: row.id,
     paymentId: row.paymentId,
@@ -236,6 +239,10 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   } catch {
     return mockStats;
   }
+}
+
+export async function getEvents(): Promise<SystemEvent[]> {
+  return request<SystemEvent[]>("/events");
 }
 
 export { ApiError };
