@@ -61,7 +61,8 @@ export function PaymentCreateForm({
         Create payment
       </h2>
       <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-        Submit a payment to start validation, risk checks, queueing, and settlement.
+        Submit a payment to start validation, risk checks, queueing, and
+        settlement.
       </p>
 
       <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">

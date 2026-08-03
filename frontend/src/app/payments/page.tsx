@@ -41,7 +41,8 @@ export default function PaymentsPage() {
           Create and monitor payments
         </h1>
         <p className="text-slate-600 dark:text-slate-300">
-          Submit new payments and follow their lifecycle from validation to settlement.
+          Submit new payments and follow their lifecycle from validation to
+          settlement.
         </p>
       </header>
 

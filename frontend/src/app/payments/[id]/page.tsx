@@ -39,7 +39,11 @@ export default function PaymentDetailPage() {
       })
       .catch((loadError) => {
         if (!cancelled) {
-          setError(loadError instanceof Error ? loadError.message : "Failed to load payment");
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : "Failed to load payment",
+          );
         }
       })
       .finally(() => {
@@ -65,7 +69,9 @@ export default function PaymentDetailPage() {
       setPayment(updated);
       setHistory(await getPaymentHistory(paymentId));
     } catch (actionError) {
-      setError(actionError instanceof Error ? actionError.message : "Action failed");
+      setError(
+        actionError instanceof Error ? actionError.message : "Action failed",
+      );
     } finally {
       setBusyAction(null);
     }
@@ -74,8 +80,13 @@ export default function PaymentDetailPage() {
   if (!hasValidId) {
     return (
       <div className="mx-auto max-w-5xl space-y-4 px-6 py-10 lg:px-8">
-        <p className="text-sm text-red-600 dark:text-red-300">Invalid payment id.</p>
-        <Link href="/payments" className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+        <p className="text-sm text-red-600 dark:text-red-300">
+          Invalid payment id.
+        </p>
+        <Link
+          href="/payments"
+          className="text-sm font-medium text-emerald-700 dark:text-emerald-400"
+        >
           Back to payments
         </Link>
       </div>
@@ -85,7 +96,9 @@ export default function PaymentDetailPage() {
   if (loading) {
     return (
       <div className="mx-auto max-w-5xl px-6 py-10 lg:px-8">
-        <p className="text-sm text-slate-500 dark:text-slate-400">Loading payment...</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Loading payment...
+        </p>
       </div>
     );
   }
@@ -93,8 +106,13 @@ export default function PaymentDetailPage() {
   if (!payment) {
     return (
       <div className="mx-auto max-w-5xl space-y-4 px-6 py-10 lg:px-8">
-        <p className="text-sm text-red-600 dark:text-red-300">Payment not found.</p>
-        <Link href="/payments" className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+        <p className="text-sm text-red-600 dark:text-red-300">
+          Payment not found.
+        </p>
+        <Link
+          href="/payments"
+          className="text-sm font-medium text-emerald-700 dark:text-emerald-400"
+        >
           Back to payments
         </Link>
       </div>
@@ -158,7 +176,9 @@ export default function PaymentDetailPage() {
         </h2>
         <div className="mt-4 space-y-3">
           {history.length === 0 ? (
-            <p className="text-sm text-slate-500 dark:text-slate-400">No history records found.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              No history records found.
+            </p>
           ) : (
             history.map((row) => (
               <div
@@ -176,7 +196,9 @@ export default function PaymentDetailPage() {
                   </span>
                 </div>
                 {row.reason && (
-                  <p className="mt-1 text-slate-500 dark:text-slate-400">{row.reason}</p>
+                  <p className="mt-1 text-slate-500 dark:text-slate-400">
+                    {row.reason}
+                  </p>
                 )}
               </div>
             ))
