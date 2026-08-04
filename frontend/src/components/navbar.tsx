@@ -2,25 +2,32 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Menu, X, ShieldCheck } from "lucide-react";
+import { Menu, X } from "lucide-react";
+import { useUserStore } from "@/lib/user-store";
+import { UserProfile } from "./user-profile";
 
-const NAV_LINKS = [
-  { href: "/", label: "Home" },
-  { href: "/admin", label: "Admin" },
-  { href: "/accounts", label: "Accounts" },
-  { href: "/payments", label: "Payments" },
-  { href: "/rules", label: "Fraud Rules" },
-  { href: "/events", label: "Events" },
-  { href: "/dlq", label: "DLQ" },
+const ALL_NAV_LINKS = [
+  { href: "/", label: "Home", adminOnly: false },
+  { href: "/admin", label: "Admin", adminOnly: true },
+  { href: "/accounts", label: "Accounts", adminOnly: false },
+  { href: "/payments", label: "Payments", adminOnly: false },
+  { href: "/rules", label: "Fraud Rules", adminOnly: true },
+  { href: "/events", label: "Events", adminOnly: true },
+  { href: "/dlq", label: "DLQ", adminOnly: true },
 ];
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
+  const { currentUser } = useUserStore();
+
+  const visibleLinks = ALL_NAV_LINKS.filter(
+    (link) => !link.adminOnly || !currentUser || currentUser.role === "admin"
+  );
 
   return (
     <header className="sticky top-0 z-50 border-b border-black/5 bg-white/80 backdrop-blur-md">
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-        <Link href="#top" className="flex items-center gap-2 font-semibold">
+        <Link href="/" className="flex items-center gap-2 font-semibold">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-500 text-white shadow-sm shadow-orange-500/30">
             ₹
           </span>
@@ -30,7 +37,7 @@ export function Navbar() {
         </Link>
 
         <div className="hidden items-center gap-6 md:flex">
-          {NAV_LINKS.map((link) => (
+          {visibleLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
@@ -42,10 +49,7 @@ export function Navbar() {
         </div>
 
         <div className="hidden items-center gap-3 md:flex">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-500/10 px-3 py-1 text-xs font-medium text-orange-700 ring-1 ring-inset ring-orange-500/20">
-            <ShieldCheck className="h-3.5 w-3.5" />
-            Role-based operations views
-          </span>
+          <UserProfile />
         </div>
 
         <button
@@ -60,7 +64,7 @@ export function Navbar() {
       {open && (
         <div className="border-t border-black/5 px-6 py-4 md:hidden">
           <div className="flex flex-col gap-4">
-            {NAV_LINKS.map((link) => (
+            {visibleLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -70,9 +74,14 @@ export function Navbar() {
                 {link.label}
               </Link>
             ))}
+            <div className="pt-2 border-t border-slate-100">
+              <UserProfile />
+            </div>
           </div>
         </div>
       )}
     </header>
   );
 }
+
+

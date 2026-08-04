@@ -4,6 +4,7 @@ import com.rupeex.onboarding.dto.ConsentRequest;
 import com.rupeex.onboarding.dto.CreateCustomerRequest;
 import com.rupeex.onboarding.dto.CustomerResponse;
 import com.rupeex.onboarding.dto.CustomerStatusResponse;
+import com.rupeex.onboarding.dto.CustomerSummary;
 import com.rupeex.onboarding.dto.RejectRequest;
 import com.rupeex.onboarding.service.CustomerOnboardingService;
 import jakarta.validation.Valid;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -32,6 +34,11 @@ public class CustomerOnboardingController {
     @ResponseStatus(HttpStatus.CREATED)
     public CustomerResponse createCustomer(@Valid @RequestBody CreateCustomerRequest request) {
         return customerOnboardingService.createCustomer(request);
+    }
+
+    @GetMapping
+    public List<CustomerSummary> listCustomers() {
+        return customerOnboardingService.listCustomers();
     }
 
     @GetMapping("/{customerId}")

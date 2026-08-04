@@ -1,6 +1,7 @@
 package com.rupeex.onboarding.entity;
 
 import com.rupeex.onboarding.enums.OnboardingStatus;
+import com.rupeex.onboarding.enums.UserRole;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -42,6 +43,22 @@ public class Customer {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private OnboardingStatus status;
+
+    @Column(name = "account_number", unique = true)
+    private String accountNumber;
+
+    @Column(name = "account_type")
+    private String accountType;
+
+    @Column(length = 3)
+    private String currency;
+
+    @Column(name = "country_code", length = 2)
+    private String countryCode;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private UserRole role;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -123,5 +140,20 @@ public class Customer {
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
     }
+
+    public String getAccountNumber() { return accountNumber; }
+    public void setAccountNumber(String accountNumber) { this.accountNumber = accountNumber; }
+
+    public String getAccountType() { return accountType; }
+    public void setAccountType(String accountType) { this.accountType = accountType; }
+
+    public String getCurrency() { return currency; }
+    public void setCurrency(String currency) { this.currency = currency; }
+
+    public String getCountryCode() { return countryCode; }
+    public void setCountryCode(String countryCode) { this.countryCode = countryCode; }
+
+    public UserRole getRole() { return role; }
+    public void setRole(UserRole role) { this.role = role; }
 }
 

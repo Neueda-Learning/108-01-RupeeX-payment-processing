@@ -1,7 +1,9 @@
 package com.rupeex.onboarding.dto;
 
+import com.rupeex.onboarding.enums.UserRole;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
 
@@ -21,44 +23,48 @@ public class CreateCustomerRequest {
 
     private String externalRef;
 
-    public String getFullName() {
-        return fullName;
-    }
+    @NotBlank(message = "Account number is required")
+    private String accountNumber;
 
-    public void setFullName(String fullName) {
-        this.fullName = fullName;
-    }
+    @NotBlank(message = "Account type is required")
+    private String accountType;
 
-    public String getEmail() {
-        return email;
-    }
+    @NotBlank(message = "Currency is required")
+    private String currency;
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
+    private String countryCode;
 
-    public String getPhone() {
-        return phone;
-    }
+    @NotNull(message = "Role is required")
+    private UserRole role;
 
-    public void setPhone(String phone) {
-        this.phone = phone;
-    }
+    public String getFullName() { return fullName; }
+    public void setFullName(String fullName) { this.fullName = fullName; }
 
-    public LocalDate getDob() {
-        return dob;
-    }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
-    public void setDob(LocalDate dob) {
-        this.dob = dob;
-    }
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
 
-    public String getExternalRef() {
-        return externalRef;
-    }
+    public LocalDate getDob() { return dob; }
+    public void setDob(LocalDate dob) { this.dob = dob; }
 
-    public void setExternalRef(String externalRef) {
-        this.externalRef = externalRef;
-    }
+    public String getExternalRef() { return externalRef; }
+    public void setExternalRef(String externalRef) { this.externalRef = externalRef; }
+
+    public String getAccountNumber() { return accountNumber; }
+    public void setAccountNumber(String accountNumber) { this.accountNumber = accountNumber; }
+
+    public String getAccountType() { return accountType; }
+    public void setAccountType(String accountType) { this.accountType = accountType; }
+
+    public String getCurrency() { return currency; }
+    public void setCurrency(String currency) { this.currency = currency; }
+
+    public String getCountryCode() { return countryCode; }
+    public void setCountryCode(String countryCode) { this.countryCode = countryCode; }
+
+    public UserRole getRole() { return role; }
+    public void setRole(UserRole role) { this.role = role; }
 }
 

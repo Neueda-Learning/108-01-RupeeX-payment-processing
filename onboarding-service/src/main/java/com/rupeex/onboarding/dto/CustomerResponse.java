@@ -1,6 +1,7 @@
 package com.rupeex.onboarding.dto;
 
 import com.rupeex.onboarding.enums.OnboardingStatus;
+import com.rupeex.onboarding.enums.UserRole;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -15,79 +16,54 @@ public class CustomerResponse {
     private LocalDate dob;
     private String externalRef;
     private OnboardingStatus status;
+    private String accountNumber;
+    private String accountType;
+    private String currency;
+    private String countryCode;
+    private UserRole role;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    public UUID getCustomerId() {
-        return customerId;
-    }
+    public UUID getCustomerId() { return customerId; }
+    public void setCustomerId(UUID customerId) { this.customerId = customerId; }
 
-    public void setCustomerId(UUID customerId) {
-        this.customerId = customerId;
-    }
+    public String getFullName() { return fullName; }
+    public void setFullName(String fullName) { this.fullName = fullName; }
 
-    public String getFullName() {
-        return fullName;
-    }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
-    public void setFullName(String fullName) {
-        this.fullName = fullName;
-    }
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
 
-    public String getEmail() {
-        return email;
-    }
+    public LocalDate getDob() { return dob; }
+    public void setDob(LocalDate dob) { this.dob = dob; }
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
+    public String getExternalRef() { return externalRef; }
+    public void setExternalRef(String externalRef) { this.externalRef = externalRef; }
 
-    public String getPhone() {
-        return phone;
-    }
+    public OnboardingStatus getStatus() { return status; }
+    public void setStatus(OnboardingStatus status) { this.status = status; }
 
-    public void setPhone(String phone) {
-        this.phone = phone;
-    }
+    public String getAccountNumber() { return accountNumber; }
+    public void setAccountNumber(String accountNumber) { this.accountNumber = accountNumber; }
 
-    public LocalDate getDob() {
-        return dob;
-    }
+    public String getAccountType() { return accountType; }
+    public void setAccountType(String accountType) { this.accountType = accountType; }
 
-    public void setDob(LocalDate dob) {
-        this.dob = dob;
-    }
+    public String getCurrency() { return currency; }
+    public void setCurrency(String currency) { this.currency = currency; }
 
-    public String getExternalRef() {
-        return externalRef;
-    }
+    public String getCountryCode() { return countryCode; }
+    public void setCountryCode(String countryCode) { this.countryCode = countryCode; }
 
-    public void setExternalRef(String externalRef) {
-        this.externalRef = externalRef;
-    }
+    public UserRole getRole() { return role; }
+    public void setRole(UserRole role) { this.role = role; }
 
-    public OnboardingStatus getStatus() {
-        return status;
-    }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
-    public void setStatus(OnboardingStatus status) {
-        this.status = status;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }
 
