@@ -16,7 +16,6 @@ public class PaymentResponse {
     private PaymentStatus status;
     private String errorCode;
     private String errorMessage;
-    private Double trustScore;
     private boolean verificationRequired;
     private String verificationToken;
     private LocalDateTime createdAt;
@@ -209,13 +208,6 @@ public class PaymentResponse {
     }
 
 
-    public Double getTrustScore() {
-        return trustScore;
-    }
-
-    public void setTrustScore(double trustScore) {
-        this.trustScore = trustScore;
-    }
 
     public boolean isVerificationRequired() {
         return verificationRequired;

@@ -22,17 +22,6 @@ public class PaymentVerification {
     @Column(nullable = false, unique = true)
     private String verificationToken;
 
-    @Column(nullable = false)
-    private double trustScoreAtDecision;
-
-    @Column(nullable = false)
-    private boolean currencyChangeTriggered;
-
-    @Column(nullable = false)
-    private boolean largePaymentTriggered;
-
-    @Column(nullable = false)
-    private boolean rapidPaymentsTriggered;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -86,37 +75,6 @@ public class PaymentVerification {
         this.verificationToken = verificationToken;
     }
 
-    public double getTrustScoreAtDecision() {
-        return trustScoreAtDecision;
-    }
-
-    public void setTrustScoreAtDecision(double trustScoreAtDecision) {
-        this.trustScoreAtDecision = trustScoreAtDecision;
-    }
-
-    public boolean isCurrencyChangeTriggered() {
-        return currencyChangeTriggered;
-    }
-
-    public void setCurrencyChangeTriggered(boolean currencyChangeTriggered) {
-        this.currencyChangeTriggered = currencyChangeTriggered;
-    }
-
-    public boolean isLargePaymentTriggered() {
-        return largePaymentTriggered;
-    }
-
-    public void setLargePaymentTriggered(boolean largePaymentTriggered) {
-        this.largePaymentTriggered = largePaymentTriggered;
-    }
-
-    public boolean isRapidPaymentsTriggered() {
-        return rapidPaymentsTriggered;
-    }
-
-    public void setRapidPaymentsTriggered(boolean rapidPaymentsTriggered) {
-        this.rapidPaymentsTriggered = rapidPaymentsTriggered;
-    }
 
     public VerificationStatus getStatus() {
         return status;
