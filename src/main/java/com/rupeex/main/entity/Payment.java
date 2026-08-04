@@ -104,6 +104,24 @@ public class Payment {
 
 
 
+
+    @Column
+    private String sourceCurrency;
+
+
+    @Column
+    private String destinationCurrency;
+
+
+    @Column
+    private BigDecimal convertedAmount;
+
+
+    @Column
+    private BigDecimal exchangeRate;
+
+
+
     /*
        Automatically called before saving first time
     */
