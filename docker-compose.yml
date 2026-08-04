@@ -83,8 +83,10 @@ services:
       # browser calls the backend through nginx at the same origin (/api).
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-}
       # Server-side base URL for onboarding service (docker network).
-      ONBOARDING_BASE_URL: ${ONBOARDING_BASE_URL:-http://onboarding-app:8083/onboarding}
+      # No /onboarding suffix - the controller is now mapped to /customers at the root.
+      ONBOARDING_BASE_URL: ${ONBOARDING_BASE_URL:-http://onboarding-app:8083}
       # Browser-side base URL for onboarding (through nginx at same origin).
+      # Should be empty so browser makes requests to same origin via /onboarding/ nginx location.
       NEXT_PUBLIC_ONBOARDING_BASE_URL: ${NEXT_PUBLIC_ONBOARDING_BASE_URL:-}
       PORT: 3000
     ports:
