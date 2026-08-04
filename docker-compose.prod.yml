@@ -10,11 +10,29 @@ services:
       - "127.0.0.1:${SERVER_PORT:-8080}:8080"
     restart: always
 
+  onboarding-app:
+    # Uses the fully-qualified onboarding image name provided by the pipeline
+    image: ${ONBOARDING_IMAGE_FULL}:${ONBOARDING_IMAGE_TAG:-latest}
+    env_file:
+      - .env
+    environment:
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:mysql://db:3306/rupeex_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-rupeex}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-rupeex}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      SERVER_PORT: ${ONBOARDING_SERVER_PORT:-8083}
+      PAYMENT_SERVICE_URL: ${PAYMENT_SERVICE_URL:-http://app:8080/api}
+    ports:
+      # Bound to localhost only, see note on the `app` service above.
+      - "127.0.0.1:${ONBOARDING_HTTP_PORT:-8083}:8083"
+    restart: always
+
   frontend:
     # Uses the fully-qualified frontend image name provided by the pipeline
     image: ${FRONTEND_IMAGE_FULL}:${FRONTEND_IMAGE_TAG:-latest}
     depends_on:
       - app
+      - onboarding-app
     environment:
       # Server-side base URL the frontend uses to reach the backend.
       # Includes the /api context path.
@@ -22,6 +40,10 @@ services:
       # Browser-side base URL used by client components. Left unset so the
       # browser calls the backend through nginx at the same origin (/api).
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-}
+      # Server-side base URL for onboarding service (docker network).
+      ONBOARDING_BASE_URL: ${ONBOARDING_BASE_URL:-http://onboarding-app:8083/onboarding}
+      # Browser-side base URL for onboarding (through nginx at same origin).
+      NEXT_PUBLIC_ONBOARDING_BASE_URL: ${NEXT_PUBLIC_ONBOARDING_BASE_URL:-}
       PORT: 3000
     ports:
       # Bound to localhost only, see note on the `app` service above.
@@ -34,6 +56,7 @@ services:
     depends_on:
       - app
       - frontend
+      - onboarding-app
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
