@@ -3,8 +3,8 @@ import type { UserRole } from "./user-store";
 export const ONBOARDING_BASE_URL =
   process.env.NEXT_PUBLIC_ONBOARDING_BASE_URL ??
   (typeof window !== "undefined"
-    ? `${window.location.protocol}//${window.location.hostname}:8091`
-    : "http://localhost:8091");
+    ? `${window.location.protocol}//${window.location.hostname}:8081`
+    : "http://localhost:8081");
 
 async function onboardingRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${ONBOARDING_BASE_URL}${path}`, {

@@ -12,7 +12,7 @@ RUN mvn -B clean package -DskipTests
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=build /workspace/target/*.jar app.jar
-EXPOSE 8090
+EXPOSE 8083
 ENV JAVA_OPTS=""
 ENTRYPOINT ["sh","-c","java $JAVA_OPTS -Dspring.profiles.active=${SPRING_PROFILES_ACTIVE:-prod} -Dserver.port=${SERVER_PORT:-8090} -jar /app/app.jar"]
 
