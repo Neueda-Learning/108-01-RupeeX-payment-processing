@@ -1,10 +1,20 @@
 import type { UserRole } from "./user-store";
 
+/**
+ * Base URL of the RupeeX onboarding service, mirroring the pattern in api.ts.
+ *
+ * `ONBOARDING_BASE_URL` (no NEXT_PUBLIC_ prefix) is read server-side and
+ * points directly at the onboarding container over the docker network,
+ * already including the /onboarding context path
+ * (e.g. http://onboarding-app:8083/onboarding).
+ *
+ * In the browser the base URL is the same-origin relative path /onboarding so
+ * that all requests are routed through the nginx reverse proxy.
+ */
 export const ONBOARDING_BASE_URL =
+  process.env.ONBOARDING_BASE_URL ??
   process.env.NEXT_PUBLIC_ONBOARDING_BASE_URL ??
-  (typeof window !== "undefined"
-    ? `${window.location.protocol}//${window.location.hostname}:8081`
-    : "http://localhost:8081");
+  (typeof window !== "undefined" ? "/onboarding" : "http://localhost:8081/onboarding");
 
 async function onboardingRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${ONBOARDING_BASE_URL}${path}`, {
@@ -49,7 +59,7 @@ export interface OnboardingCustomer {
 
 export async function createAndApproveUser(input: CreateUserInput): Promise<OnboardingCustomer> {
   // Step 1: Create customer
-  const customer = await onboardingRequest<OnboardingCustomer>("/onboarding/customers", {
+  const customer = await onboardingRequest<OnboardingCustomer>("/customers", {
     method: "POST",
     body: JSON.stringify({
       fullName: input.fullName,
@@ -67,7 +77,7 @@ export async function createAndApproveUser(input: CreateUserInput): Promise<Onbo
   const id = customer.customerId;
 
   // Step 2: Auto-accept terms consent
-  await onboardingRequest(`/onboarding/customers/${id}/consents`, {
+  await onboardingRequest(`/customers/${id}/consents`, {
     method: "POST",
     body: JSON.stringify({
       consentType: "TERMS_AND_PRIVACY",
@@ -77,15 +87,15 @@ export async function createAndApproveUser(input: CreateUserInput): Promise<Onbo
   });
 
   // Step 3: Submit for review
-  await onboardingRequest(`/onboarding/customers/${id}/submit`, { method: "POST" });
+  await onboardingRequest(`/customers/${id}/submit`, { method: "POST" });
 
   // Step 4: Auto-approve
-  await onboardingRequest(`/onboarding/customers/${id}/approve`, { method: "POST" });
+  await onboardingRequest(`/customers/${id}/approve`, { method: "POST" });
 
   return customer;
 }
 
 export async function listOnboardingUsers(): Promise<OnboardingCustomer[]> {
-  return onboardingRequest<OnboardingCustomer[]>("/onboarding/customers");
+  return onboardingRequest<OnboardingCustomer[]>("/customers");
 }
 

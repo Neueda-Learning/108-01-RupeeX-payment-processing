@@ -63,7 +63,12 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-rupeex}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
       SERVER_PORT: ${ONBOARDING_SERVER_PORT:-8083}
-      PAYMENT_SERVICE_URL: ${PAYMENT_SERVICE_URL:-http://app:8080}
+      # Context path must always be /onboarding to match nginx routing and
+      # the controller mappings (same pattern as the main app using /api).
+      # Explicitly set here so it cannot be accidentally overridden by .env.
+      SERVER_SERVLET_CONTEXT_PATH: /onboarding
+      # Payment service URL with /api context path for REST endpoints
+      PAYMENT_SERVICE_URL: ${PAYMENT_SERVICE_URL:-http://app:8080/api}
     ports:
       - "${ONBOARDING_HTTP_PORT:-8083}:8083"
     restart: on-failure
@@ -83,8 +88,8 @@ services:
       # browser calls the backend through nginx at the same origin (/api).
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-}
       # Server-side base URL for onboarding service (docker network).
-      # No /onboarding suffix - the controller is now mapped to /customers at the root.
-      ONBOARDING_BASE_URL: ${ONBOARDING_BASE_URL:-http://onboarding-app:8083}
+      # Includes /onboarding path to match controller @RequestMapping.
+      ONBOARDING_BASE_URL: ${ONBOARDING_BASE_URL:-http://onboarding-app:8083/onboarding}
       # Browser-side base URL for onboarding (through nginx at same origin).
       # Should be empty so browser makes requests to same origin via /onboarding/ nginx location.
       NEXT_PUBLIC_ONBOARDING_BASE_URL: ${NEXT_PUBLIC_ONBOARDING_BASE_URL:-}
