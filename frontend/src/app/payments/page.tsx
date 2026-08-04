@@ -2,17 +2,26 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { getPayments } from "@/lib/api";
 import type { Payment } from "@/lib/types";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
 import { PaymentCreateForm } from "@/components/payment-create-form";
+import { useUserStore } from "@/lib/user-store";
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+  const { currentUser } = useUserStore();
+  const router = useRouter();
 
+  // Members are not allowed on this page — redirect to their account view
   useEffect(() => {
+    if (currentUser?.role === "member") {
+      router.replace("/accounts");
+    }
+  }, [currentUser, router]);
     let cancelled = false;
     getPayments()
       .then((rows) => {

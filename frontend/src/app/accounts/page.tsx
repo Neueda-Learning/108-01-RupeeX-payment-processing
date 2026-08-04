@@ -6,6 +6,9 @@ import { getAccounts, getPayments, createPayment } from "@/lib/api";
 import type { Account, Payment, CreatePaymentInput } from "@/lib/types";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
+import { useUserStore } from "@/lib/user-store";
+import type { AppUser, UserRole } from "@/lib/user-store";
+import { listOnboardingUsers } from "@/lib/onboarding-api";
 
 type Tab = "sent" | "received";
 
@@ -32,6 +35,9 @@ export default function AccountsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const { currentUser, mergeUsers } = useUserStore();
+  const isAdmin = !currentUser || currentUser.role === "admin";
+
   // Send payment form state
   const [showSend, setShowSend] = useState(false);
   const [sendForm, setSendForm] = useState<Partial<CreatePaymentInput>>({
@@ -47,13 +53,33 @@ export default function AccountsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([getAccounts(), getPayments()])
-      .then(([accs, pays]) => {
+    Promise.all([getAccounts(), getPayments(), listOnboardingUsers()])
+      .then(([accs, pays, customers]) => {
         if (cancelled) return;
         setAccounts(accs);
         setPayments(pays);
-        if (accs.length > 0) setSelected(accs[0]);
         setError(null);
+
+        // Sync onboarding customers into the user-store so seed users appear
+        // in the user-switcher without requiring manual add.
+        mergeUsers(
+          customers.map((c) => ({
+            customerId: c.customerId,
+            name: c.fullName,
+            email: c.email,
+            phone: c.phone,
+            accountNumber: c.accountNumber,
+            role: c.role.toLowerCase() as UserRole,
+          }) satisfies AppUser)
+        );
+
+        // Pre-select: members see only their own account; admins see the first
+        if (currentUser?.role === "member") {
+          const mine = accs.find((a) => a.accountNumber === currentUser.accountNumber);
+          setSelected(mine ?? accs[0] ?? null);
+        } else {
+          if (accs.length > 0) setSelected(accs[0]);
+        }
       })
       .catch((e) => {
         if (!cancelled)
@@ -65,6 +91,7 @@ export default function AccountsPage() {
     return () => {
       cancelled = true;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const sent = useMemo(
@@ -121,6 +148,15 @@ export default function AccountsPage() {
     (a) => a.accountNumber !== selected?.accountNumber,
   );
 
+  // Members can only view/send from their own account
+  const visibleAccounts = useMemo(
+    () =>
+      isAdmin
+        ? accounts
+        : accounts.filter((a) => a.accountNumber === currentUser?.accountNumber),
+    [accounts, isAdmin, currentUser],
+  );
+
   if (loading) {
     return (
       <div className="mx-auto max-w-7xl px-6 py-16 text-center text-sm text-slate-500">
@@ -151,7 +187,8 @@ export default function AccountsPage() {
         </p>
       )}
 
-      {/* Account selector */}
+      {/* Account selector — only shown to admins; members always see their own account */}
+      {isAdmin && (
       <section className="panel rounded-2xl p-5">
         <label
           htmlFor="account-select"
@@ -164,7 +201,7 @@ export default function AccountsPage() {
           className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 sm:max-w-xl"
           value={selected?.accountNumber ?? ""}
           onChange={(e) => {
-            const acc = accounts.find(
+            const acc = visibleAccounts.find(
               (a) => a.accountNumber === e.target.value,
             );
             setSelected(acc ?? null);
@@ -173,13 +210,14 @@ export default function AccountsPage() {
             setSendError(null);
           }}
         >
-          {accounts.map((a) => (
+          {visibleAccounts.map((a) => (
             <option key={a.id} value={a.accountNumber}>
               {a.accountNumber} — {a.accountHolder}
             </option>
           ))}
         </select>
       </section>
+      )}
 
       {selected && (
         <>
