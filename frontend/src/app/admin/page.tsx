@@ -6,6 +6,9 @@ import { getAccounts, getPayments } from "@/lib/api";
 import type { Account, Payment } from "@/lib/types";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
+import { listOnboardingUsers } from "@/lib/onboarding-api";
+import { useUserStore } from "@/lib/user-store";
+import type { AppUser, UserRole } from "@/lib/user-store";
 
 function pct(n: number, total: number) {
   if (total === 0) return "0%";
@@ -77,15 +80,28 @@ export default function AdminViewPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { mergeUsers } = useUserStore();
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([getPayments(), getAccounts()])
-      .then(([pays, accs]) => {
+    Promise.all([getPayments(), getAccounts(), listOnboardingUsers()])
+      .then(([pays, accs, customers]) => {
         if (cancelled) return;
         setPayments(pays);
         setAccounts(accs);
         setError(null);
+        // Sync seed / onboarding users into the store so they appear
+        // in the navbar user-switcher immediately.
+        mergeUsers(
+          customers.map((c) => ({
+            customerId: c.customerId,
+            name: c.fullName,
+            email: c.email,
+            phone: c.phone,
+            accountNumber: c.accountNumber,
+            role: c.role.toLowerCase() as UserRole,
+          }) satisfies AppUser)
+        );
       })
       .catch((e) => {
         if (!cancelled)
@@ -97,6 +113,7 @@ export default function AdminViewPage() {
     return () => {
       cancelled = true;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const settled = useMemo(

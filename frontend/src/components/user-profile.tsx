@@ -69,13 +69,13 @@ export function UserProfile() {
               </>
             )}
 
-            <DropdownMenu.Item
-              onSelect={() => setModalOpen(true)}
-              className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium text-orange-600 outline-none hover:bg-orange-50"
-            >
-              <UserPlus className="h-4 w-4" />
-              Add New User
-            </DropdownMenu.Item>
+              <DropdownMenu.Item
+                onSelect={() => setModalOpen(true)}
+                className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium text-orange-600 outline-none hover:bg-orange-50"
+              >
+                <UserPlus className="h-4 w-4" />
+                Add New User
+              </DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
       </DropdownMenu.Root>
@@ -84,4 +84,3 @@ export function UserProfile() {
     </>
   );
 }
-

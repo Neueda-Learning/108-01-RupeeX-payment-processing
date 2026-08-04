@@ -17,6 +17,8 @@ interface UserStore {
   users: AppUser[];
   setCurrentUser: (user: AppUser | null) => void;
   addUser: (user: AppUser) => void;
+  /** Merges incoming users into the store without changing currentUser. */
+  mergeUsers: (incoming: AppUser[]) => void;
 }
 
 export const useUserStore = create<UserStore>()(
@@ -30,6 +32,12 @@ export const useUserStore = create<UserStore>()(
           users: [...state.users.filter((u) => u.customerId !== user.customerId), user],
           currentUser: user,
         })),
+      mergeUsers: (incoming) =>
+        set((state) => {
+          const map = new Map(state.users.map((u) => [u.customerId, u]));
+          for (const u of incoming) map.set(u.customerId, u);
+          return { users: Array.from(map.values()) };
+        }),
     }),
     { name: "rupeex-users" }
   )

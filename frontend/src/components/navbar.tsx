@@ -7,22 +7,26 @@ import { useUserStore } from "@/lib/user-store";
 import { UserProfile } from "./user-profile";
 
 const ALL_NAV_LINKS = [
-  { href: "/", label: "Home", adminOnly: false },
-  { href: "/admin", label: "Admin", adminOnly: true },
-  { href: "/accounts", label: "Accounts", adminOnly: false },
-  { href: "/payments", label: "Payments", adminOnly: false },
-  { href: "/rules", label: "Fraud Rules", adminOnly: true },
-  { href: "/events", label: "Events", adminOnly: true },
-  { href: "/dlq", label: "DLQ", adminOnly: true },
+  { href: "/", label: "Home", adminOnly: false, memberHidden: true },
+  { href: "/admin", label: "Admin", adminOnly: true, memberHidden: false },
+  { href: "/accounts", label: "Accounts", adminOnly: false, memberHidden: false },
+  { href: "/payments", label: "Payments", adminOnly: false, memberHidden: true },
+  { href: "/rules", label: "Fraud Rules", adminOnly: true, memberHidden: false },
+  { href: "/events", label: "Events", adminOnly: true, memberHidden: false },
+  { href: "/dlq", label: "DLQ", adminOnly: true, memberHidden: false },
 ];
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
   const { currentUser } = useUserStore();
 
-  const visibleLinks = ALL_NAV_LINKS.filter(
-    (link) => !link.adminOnly || !currentUser || currentUser.role === "admin"
-  );
+  const visibleLinks = ALL_NAV_LINKS.filter((link) => {
+    // Admin-only links: hidden for logged-in non-admins (but visible when no user selected)
+    if (link.adminOnly && currentUser && currentUser.role !== "admin") return false;
+    // Member-hidden links: hidden for members
+    if (link.memberHidden && currentUser?.role === "member") return false;
+    return true;
+  });
 
   return (
     <header className="sticky top-0 z-50 border-b border-black/5 bg-white/80 backdrop-blur-md">
@@ -83,5 +87,3 @@ export function Navbar() {
     </header>
   );
 }
-
-
