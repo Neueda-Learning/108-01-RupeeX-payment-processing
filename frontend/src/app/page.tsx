@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { getDashboardStats, getPayments } from "@/lib/api";
 import { formatCurrency, formatPercent } from "@/lib/format";
+import { MemberRedirect } from "@/components/member-redirect";
 
 const VIEWS = [
   {
@@ -61,6 +62,7 @@ export default async function Home() {
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-10 lg:px-8">
+      <MemberRedirect to="/accounts" />
       <section className="panel relative overflow-hidden rounded-3xl p-8">
         <div className="absolute -right-10 -top-16 h-52 w-52 rounded-full bg-orange-500/10 blur-2xl" />
         <div className="absolute -left-14 bottom-0 h-44 w-44 rounded-full bg-blue-500/10 blur-2xl" />

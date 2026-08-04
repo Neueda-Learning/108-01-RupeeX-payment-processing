@@ -17,9 +17,20 @@ function uniqueById(events: SystemEvent[]): SystemEvent[] {
   return output;
 }
 
-/** Convert http(s)://host to ws(s)://host for native WebSocket */
+/** Convert an http(s) or relative API base into a ws(s) URL for native WebSocket */
 function toWsUrl(base: string): string {
-  return base.replace(/^http/, "ws") + "/ws/events/websocket";
+  if (/^https?:\/\//.test(base)) {
+    return base.replace(/^http/, "ws") + "/ws/events/websocket";
+  }
+
+  // Relative base (e.g. "/api") - resolve against the current page origin,
+  // since WebSocket requires an absolute ws(s):// URL.
+  if (typeof window !== "undefined") {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    return `${protocol}//${window.location.host}${base}/ws/events/websocket`;
+  }
+
+  return base + "/ws/events/websocket";
 }
 
 export default function EventsPage() {
