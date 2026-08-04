@@ -46,7 +46,7 @@ services:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
       SERVER_PORT: ${SERVER_PORT:-8080}
     ports:
-      - "8081:8080"
+      - "127.0.0.1:8082:8080"
     restart: on-failure
 
   onboarding-app:
@@ -75,14 +75,32 @@ services:
       - app
       - onboarding-app
     environment:
-      API_BASE_URL: ${FRONTEND_API_BASE_URL:-http://app:8080}
-      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8081}
       ONBOARDING_BASE_URL: ${ONBOARDING_BASE_URL:-http://onboarding-app:8083}
       NEXT_PUBLIC_ONBOARDING_BASE_URL: ${NEXT_PUBLIC_ONBOARDING_BASE_URL:-http://localhost:8083}
+      # Server-side base URL the frontend uses to reach the backend.
+      # Uses the docker-compose service name `app`, resolvable on the
+      # internal compose network. Includes the /api context path.
+      API_BASE_URL: ${FRONTEND_API_BASE_URL:-http://app:8080/api}
+      # Browser-side base URL used by client components. Left unset so the
+      # browser calls the backend through nginx at the same origin (/api).
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-}
       PORT: 3000
     ports:
-      - "8000:3000"
+      # Bound to localhost only, see note on the `app` service above.
+      - "127.0.0.1:8000:3000"
     restart: on-failure
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: rupeex-nginx
+    depends_on:
+      - app
+      - frontend
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "${NGINX_PORT:-80}:80"
+    restart: always
 
 volumes:
   db_data:
