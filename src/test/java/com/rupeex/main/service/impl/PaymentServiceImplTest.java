@@ -18,8 +18,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -383,14 +386,16 @@ class PaymentServiceImplTest {
     }
 
     private Payment createMockPayment(Long id, PaymentStatus status) {
-        Payment payment = mock(Payment.class);
-        when(payment.getId()).thenReturn(id);
-        when(payment.getAmount()).thenReturn(new BigDecimal("1000.00"));
-        when(payment.getCurrency()).thenReturn("USD");
-        when(payment.getSourceAccount()).thenReturn("ACC-SRC-001");
-        when(payment.getDestinationAccount()).thenReturn("ACC-DST-001");
-        when(payment.getPaymentReference()).thenReturn("PAY-" + UUID.randomUUID());
-        when(payment.getStatus()).thenReturn(status);
+        // Create real Payment object (avoid mocking Lombok entities)
+        // Use ReflectionTestUtils to set ID since it's auto-generated
+        Payment payment = new Payment();
+        ReflectionTestUtils.setField(payment, "id", id);
+        payment.setAmount(new BigDecimal("1000.00"));
+        payment.setCurrency("USD");
+        payment.setSourceAccount("ACC-SRC-001");
+        payment.setDestinationAccount("ACC-DST-001");
+        payment.setPaymentReference("PAY-" + UUID.randomUUID());
+        payment.setStatus(status);
         return payment;
     }
 }
