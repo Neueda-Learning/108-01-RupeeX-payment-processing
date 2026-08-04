@@ -3,6 +3,7 @@ package com.rupeex.main.controller;
 import com.rupeex.main.dto.PaymentRequest;
 import com.rupeex.main.dto.PaymentResponse;
 import com.rupeex.main.dto.StatusUpdateRequest;
+import com.rupeex.main.dto.VerificationDecisionRequest;
 import com.rupeex.main.service.PaymentService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -10,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 
 @RestController
-@RequestMapping("/payments")
+@RequestMapping("/legacy/payments")
 public class PaymentController {
 
 
@@ -55,6 +56,19 @@ public class PaymentController {
         paymentService.updatePaymentStatus(
                 paymentId,
                 request.getStatus()
+        );
+    }
+
+
+
+    @PostMapping("/{paymentId}/verification-decision")
+    public PaymentResponse processVerificationDecision(
+            @PathVariable Long paymentId,
+            @Valid @RequestBody VerificationDecisionRequest request) {
+
+        return paymentService.processVerificationDecision(
+                paymentId,
+                request
         );
     }
 

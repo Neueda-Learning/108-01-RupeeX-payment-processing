@@ -1,0 +1,12 @@
+package com.rupeex.main.enums;
+
+public enum FraudRuleType {
+    LARGE_TRANSACTION,
+    NIGHT_TRANSACTION,
+    VELOCITY_CHECK,
+    REPEATED_FAILED_ATTEMPTS,
+    BLACKLISTED_ACCOUNT,
+    HIGH_RISK_COUNTRY,
+    NEW_ACCOUNT,
+    SUSPICIOUS_FREQUENCY
+}

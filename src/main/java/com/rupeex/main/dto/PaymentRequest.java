@@ -2,6 +2,7 @@ package com.rupeex.main.dto;
 
 
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -37,6 +38,10 @@ public class PaymentRequest {
 
     @NotBlank(message = "Idempotency key is required")
     private String idempotencyKey;
+
+
+    @Email(message = "Customer email must be valid")
+    private String customerEmail;
 
 
 
@@ -130,6 +135,25 @@ public class PaymentRequest {
     public void setIdempotencyKey(String idempotencyKey) {
 
         this.idempotencyKey = idempotencyKey;
+
+    }
+
+
+
+
+
+    // Customer Email Getter Setter
+
+    public String getCustomerEmail() {
+
+        return customerEmail;
+
+    }
+
+
+    public void setCustomerEmail(String customerEmail) {
+
+        this.customerEmail = customerEmail;
 
     }
 

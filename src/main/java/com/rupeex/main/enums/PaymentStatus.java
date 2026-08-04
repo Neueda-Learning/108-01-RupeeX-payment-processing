@@ -8,10 +8,30 @@ public enum PaymentStatus {
 
     VALIDATED,
 
+    RISK_ANALYZED,
+
+    FRAUD_CHECKED,
+
+    QUEUED,
+
+    PROCESSING,
+
     SENT,
+
+    SETTLED,
 
     COMPLETED,
 
-    INITIATED, SUCCESS, PROCESSING, FAILED
+    CANCELLED,
+
+    PENDING_VERIFICATION,
+
+    DECLINED,
+
+    INITIATED,
+
+    SUCCESS,
+
+    FAILED
 
 }

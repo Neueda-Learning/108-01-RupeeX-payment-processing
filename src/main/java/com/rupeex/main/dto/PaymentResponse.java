@@ -1,45 +1,25 @@
 package com.rupeex.main.dto;
 
-
 import com.rupeex.main.enums.PaymentStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-
 public class PaymentResponse {
 
-
     private Long paymentId;
-
-
     private String paymentReference;
-
-
     private BigDecimal amount;
-
-
     private String currency;
-
-
     private String sourceAccount;
-
-
     private String destinationAccount;
-
-
     private PaymentStatus status;
-
-
     private String errorCode;
-
-
     private String errorMessage;
-
-
+    private Double trustScore;
+    private boolean verificationRequired;
+    private String verificationToken;
     private LocalDateTime createdAt;
-
-
     private LocalDateTime updatedAt;
 
 
@@ -229,4 +209,27 @@ public class PaymentResponse {
     }
 
 
+    public Double getTrustScore() {
+        return trustScore;
+    }
+
+    public void setTrustScore(double trustScore) {
+        this.trustScore = trustScore;
+    }
+
+    public boolean isVerificationRequired() {
+        return verificationRequired;
+    }
+
+    public void setVerificationRequired(boolean requiresVerification) {
+        this.verificationRequired = requiresVerification;
+    }
+
+    public String getVerificationToken() {
+        return verificationToken;
+    }
+
+    public void setVerificationToken(String verificationToken) {
+        this.verificationToken = verificationToken;
+    }
 }
