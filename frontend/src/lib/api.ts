@@ -17,14 +17,18 @@ import type {
  * server/container and is the preferred variable — it lets the same
  * built image point at different backends (e.g. the `app` service name
  * inside docker-compose) without rebuilding. `NEXT_PUBLIC_API_BASE_URL`
- * is kept as a fallback for local `npm run dev` convenience.
+ * is kept as an optional override for local `npm run dev` convenience.
+ *
+ * The backend is served under the `/api` context path. In production an
+ * nginx reverse proxy sits in front of both the frontend and backend
+ * containers on a single port, forwarding `/api/*` to the backend and
+ * everything else to the frontend — so the browser fallback below is a
+ * same-origin relative path, not a hardcoded host:port.
  */
 export const API_BASE_URL =
   process.env.API_BASE_URL ??
   process.env.NEXT_PUBLIC_API_BASE_URL ??
-  (typeof window !== "undefined"
-    ? `${window.location.protocol}//${window.location.hostname}:8081`
-    : "http://localhost:8080");
+  (typeof window !== "undefined" ? "/api" : "http://localhost:8080/api");
 
 class ApiError extends Error {
   constructor(
