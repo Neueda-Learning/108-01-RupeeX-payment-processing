@@ -22,6 +22,9 @@ export default function PaymentsPage() {
       router.replace("/accounts");
     }
   }, [currentUser, router]);
+
+  // Fetch payments
+  useEffect(() => {
     let cancelled = false;
     getPayments()
       .then((rows) => {
