@@ -46,17 +46,46 @@ function loadChunks(): Chunk[] {
 }
 
 async function embed(text: string): Promise<number[] | null> {
-  try {
-    const resp = await axios.post(
-      `${SLM_BASE_URL}/api/embeddings`,
-      { model: EMBED_MODEL, prompt: text },
-      { timeout: 8000 }
-    );
-    return resp.data?.embedding ?? null;
-  } catch (err: any) {
-    console.warn('[rag] embedding request failed:', err.message || err);
-    return null;
+  const url = `${SLM_BASE_URL}/api/embeddings`;
+  // Try several payload shapes and parse multiple common response formats
+  const attempts = [
+    { model: EMBED_MODEL, input: text },
+    { model: EMBED_MODEL, prompt: text },
+    { model: EMBED_MODEL, inputs: [text] },
+  ];
+
+  for (const payload of attempts) {
+    try {
+      const resp = await axios.post(url, payload, { timeout: 8000 });
+      const d = resp.data ?? {};
+
+      // Common return shapes:
+      // { embedding: [...] }
+      if (Array.isArray(d.embedding) && typeof d.embedding[0] === 'number') return d.embedding as number[];
+
+      // { embeddings: [[...]] }
+      if (Array.isArray(d.embeddings) && Array.isArray(d.embeddings[0]) && typeof d.embeddings[0][0] === 'number') {
+        return d.embeddings[0] as number[];
+      }
+
+      // { data: [{ embedding: [...] }, ...] }
+      if (Array.isArray(d.data) && Array.isArray(d.data[0]?.embedding)) return d.data[0].embedding as number[];
+
+      // Some runtimes return { results: [...] }
+      if (Array.isArray(d.results) && Array.isArray(d.results[0]?.embedding)) return d.results[0].embedding as number[];
+
+      // If response contained an embeddings-like field with a single numeric array, try to find it
+      for (const v of Object.values(d)) {
+        if (Array.isArray(v) && typeof v[0] === 'number') return v as number[];
+      }
+    } catch (err: any) {
+      // Log but keep trying other payload shapes; most failures here are connection or 4xx/5xx responses
+      const status = err?.response?.status ? ` status=${err.response.status}` : '';
+      console.warn(`[rag] embedding request failed (${status}) for payload keys=${Object.keys(payload)}:`, err.message || err);
+    }
   }
+
+  return null;
 }
 
 function cosineSimilarity(a: number[], b: number[]): number {
@@ -72,9 +101,41 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
+const RAG_RETRY_MS = Number(process.env.RAG_RETRY_MS || 15000);
+const RAG_MAX_RETRIES = Number(process.env.RAG_MAX_RETRIES || 20); // ~5 min at default interval
+
 /**
- * Builds the in-memory embedding index once at startup. Safe to call
- * multiple times (no-op after the first successful build). Never throws —
+ * Attempts a single pass at building the in-memory embedding index.
+ * Returns true on success, false if the embedding model is still
+ * unreachable (e.g. `ollama-pull` hasn't finished downloading it yet).
+ */
+async function tryBuildIndex(): Promise<boolean> {
+  const chunks = loadChunks();
+  if (chunks.length === 0) {
+    indexError = `no knowledge chunks found in ${KB_DIR}`;
+    return true; // nothing to retry for — not a transient failure
+  }
+  const embedded: Chunk[] = [];
+  for (const chunk of chunks) {
+    const vec = await embed(chunk.text);
+    if (vec) embedded.push({ ...chunk, embedding: vec });
+  }
+  if (embedded.length === 0) {
+    indexError = 'embedding model unreachable (is Ollama running with EMBED_MODEL pulled?)';
+    return false;
+  }
+  index = embedded;
+  indexReady = true;
+  indexError = null;
+  console.log(`[rag] indexed ${index.length} knowledge chunks using model "${EMBED_MODEL}"`);
+  return true;
+}
+
+/**
+ * Builds the in-memory embedding index at startup. If the embedding model
+ * isn't reachable yet (common when `ollama-pull` is still downloading it in
+ * the background), retries in the background every RAG_RETRY_MS up to
+ * RAG_MAX_RETRIES times instead of failing permanently. Never throws —
  * failures leave RAG disabled and callers fall back to no extra context.
  */
 export async function initRag(): Promise<void> {
@@ -83,28 +144,28 @@ export async function initRag(): Promise<void> {
     return;
   }
   try {
-    const chunks = loadChunks();
-    if (chunks.length === 0) {
-      indexError = `no knowledge chunks found in ${KB_DIR}`;
-      return;
-    }
-    const embedded: Chunk[] = [];
-    for (const chunk of chunks) {
-      const vec = await embed(chunk.text);
-      if (vec) embedded.push({ ...chunk, embedding: vec });
-    }
-    if (embedded.length === 0) {
-      indexError = 'embedding model unreachable (is Ollama running with EMBED_MODEL pulled?)';
-      return;
-    }
-    index = embedded;
-    indexReady = true;
-    indexError = null;
-    console.log(`[rag] indexed ${index.length} knowledge chunks using model "${EMBED_MODEL}"`);
+    const ok = await tryBuildIndex();
+    if (ok) return;
   } catch (err: any) {
     indexError = err.message || String(err);
     console.warn('[rag] index build failed:', indexError);
   }
+
+  // Background retry loop — doesn't block the initial startup log line.
+  let attempt = 0;
+  const retry = async () => {
+    attempt += 1;
+    if (indexReady || attempt > RAG_MAX_RETRIES) return;
+    console.log(`[rag] retrying index build (attempt ${attempt}/${RAG_MAX_RETRIES})...`);
+    try {
+      const ok = await tryBuildIndex();
+      if (ok) return;
+    } catch (err: any) {
+      indexError = err.message || String(err);
+    }
+    setTimeout(retry, RAG_RETRY_MS);
+  };
+  setTimeout(retry, RAG_RETRY_MS);
 }
 
 /**
