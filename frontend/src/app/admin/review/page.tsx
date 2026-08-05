@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getPendingAdminApprovalPayments, adminApprovePayment, adminDeclinePayment } from "@/lib/api";
@@ -25,7 +25,7 @@ export default function AdminReviewPage() {
     }
   }, [currentUser, router]);
 
-  const loadPendingPayments = () => {
+  const loadPendingPayments = useCallback(() => {
     setLoading(true);
     setError(null);
     getPendingAdminApprovalPayments()
@@ -38,12 +38,12 @@ export default function AdminReviewPage() {
       .finally(() => {
         setLoading(false);
       });
-  };
+  }, []);
 
   // Fetch pending approval payments
   useEffect(() => {
     loadPendingPayments();
-  }, []);
+  }, [loadPendingPayments]);
 
   const handleApprove = async (paymentId: number) => {
     setProcessing(paymentId);
