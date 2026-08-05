@@ -145,6 +145,76 @@ CREATE TABLE IF NOT EXISTS system_events (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS payment_verifications (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    payment_id BIGINT NOT NULL UNIQUE,
+    customer_id VARCHAR(100) NOT NULL,
+    verification_token VARCHAR(255) NOT NULL UNIQUE,
+    status VARCHAR(50) NOT NULL,
+    customer_email VARCHAR(255),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_verification_payment FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- Safety net: Hibernate 6 + MySQLDialect maps @Enumerated(EnumType.STRING)
+-- fields to a native MySQL ENUM(...) column by default (fixed value list
+-- baked in at table-creation time) unless
+-- hibernate.type.preferred_enum_jdbc_type=VARCHAR is set. Any table created
+-- before that property existed may still have a native ENUM column, which
+-- rejects newly added enum constants (e.g. a new PaymentStatus value) with
+-- "Data truncated for column ...". These MODIFY statements are idempotent and
+-- safe to re-run on every startup; they force the columns back to plain
+-- VARCHAR so new enum values are always accepted.
+ALTER TABLE payments MODIFY COLUMN status VARCHAR(50) NOT NULL;
+ALTER TABLE payment_history MODIFY COLUMN old_status VARCHAR(50) NULL;
+ALTER TABLE payment_history MODIFY COLUMN new_status VARCHAR(50) NOT NULL;
+ALTER TABLE audit_logs MODIFY COLUMN before_state VARCHAR(50) NULL;
+ALTER TABLE audit_logs MODIFY COLUMN after_state VARCHAR(50) NULL;
+ALTER TABLE risk_scores MODIFY COLUMN category VARCHAR(50) NOT NULL;
+ALTER TABLE fraud_rules MODIFY COLUMN rule_type VARCHAR(80) NOT NULL;
+ALTER TABLE payment_verifications MODIFY COLUMN status VARCHAR(50) NOT NULL;
+
+-- Data repair: MySQL's legacy zero-date sentinel ('0000-00-00 00:00:00') can
+-- end up in DATETIME/TIMESTAMP columns (e.g. rows inserted without an
+-- explicit value on a column that predates its DEFAULT CURRENT_TIMESTAMP, or
+-- data imported/restored from a dump with strict mode disabled). Reading such
+-- a value back throws "Zero date value prohibited" in MySQL Connector/J,
+-- failing the entire query. These UPDATEs are idempotent (only rows currently
+-- holding the sentinel are touched) and repair the data at the source, in
+-- addition to the zeroDateTimeBehavior=CONVERT_TO_NULL JDBC URL option which
+-- only masks the symptom on read.
+--
+-- MySQL 8's default sql_mode includes STRICT_TRANS_TABLES, which folds in the
+-- legacy NO_ZERO_DATE behavior: even using '0000-00-00 00:00:00' as a literal
+-- for comparison (not just for insert) is rejected with "Incorrect datetime
+-- value". Temporarily relax sql_mode for the remainder of this session so the
+-- comparisons below are allowed, then restore the original mode.
+SET @rupeex_original_sql_mode = @@SESSION.sql_mode;
+SET SESSION sql_mode = '';
+
+UPDATE accounts SET created_at = NOW() WHERE created_at = '0000-00-00 00:00:00';
+UPDATE accounts SET updated_at = NOW() WHERE updated_at = '0000-00-00 00:00:00';
+UPDATE payments SET created_at = NOW() WHERE created_at = '0000-00-00 00:00:00';
+UPDATE payments SET updated_at = NOW() WHERE updated_at = '0000-00-00 00:00:00';
+UPDATE payment_history SET changed_at = NOW() WHERE changed_at = '0000-00-00 00:00:00';
+UPDATE audit_logs SET created_at = NOW() WHERE created_at = '0000-00-00 00:00:00';
+UPDATE fraud_rules SET created_at = NOW() WHERE created_at = '0000-00-00 00:00:00';
+UPDATE fraud_rules SET updated_at = NOW() WHERE updated_at = '0000-00-00 00:00:00';
+UPDATE fraud_results SET created_at = NOW() WHERE created_at = '0000-00-00 00:00:00';
+UPDATE risk_scores SET created_at = NOW() WHERE created_at = '0000-00-00 00:00:00';
+UPDATE processing_queue SET next_attempt_at = NOW() WHERE next_attempt_at = '0000-00-00 00:00:00';
+UPDATE processing_queue SET created_at = NOW() WHERE created_at = '0000-00-00 00:00:00';
+UPDATE processing_queue SET updated_at = NOW() WHERE updated_at = '0000-00-00 00:00:00';
+UPDATE dead_letter_queue SET created_at = NOW() WHERE created_at = '0000-00-00 00:00:00';
+UPDATE notifications SET created_at = NOW() WHERE created_at = '0000-00-00 00:00:00';
+UPDATE payment_metrics SET recorded_at = NOW() WHERE recorded_at = '0000-00-00 00:00:00';
+UPDATE system_events SET created_at = NOW() WHERE created_at = '0000-00-00 00:00:00';
+UPDATE payment_verifications SET created_at = NOW() WHERE created_at = '0000-00-00 00:00:00';
+UPDATE payment_verifications SET updated_at = NOW() WHERE updated_at = '0000-00-00 00:00:00';
+
+SET SESSION sql_mode = @rupeex_original_sql_mode;
+
 INSERT IGNORE INTO fraud_rules (name, description, rule_type, threshold, score_contribution, enabled)
 VALUES
 ('Large Transaction', 'Flags transactions above threshold', 'LARGE_TRANSACTION', 20000, 30, TRUE),

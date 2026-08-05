@@ -9,7 +9,7 @@ export function PaymentsTable({ payments }: { payments: Payment[] }) {
         <table className="min-w-full divide-y divide-black/5 dark:divide-white/10">
           <thead className="bg-slate-50 dark:bg-slate-800/50">
             <tr>
-              {["Reference", "Route", "Amount", "Status", "Updated"].map((col) => (
+              {["Reference", "Route", "Amount", "Risk Score", "Status", "Updated"].map((col) => (
                 <th
                   key={col}
                   scope="col"
@@ -41,6 +41,28 @@ export function PaymentsTable({ payments }: { payments: Payment[] }) {
                 </td>
                 <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-slate-900 dark:text-white">
                   {formatCurrency(payment.amount, payment.currency)}
+                </td>
+                <td className="whitespace-nowrap px-6 py-4">
+                  {payment.riskScore ? (
+                    <div className="flex items-center space-x-2">
+                      <span
+                        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                          payment.riskScore.score >= 81
+                            ? "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"
+                            : payment.riskScore.score >= 50
+                              ? "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400"
+                              : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400"
+                        }`}
+                      >
+                        {payment.riskScore.score}
+                      </span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        {payment.riskScore.category}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-400 dark:text-slate-500">N/A</span>
+                  )}
                 </td>
                 <td className="whitespace-nowrap px-6 py-4">
                   <StatusBadge status={payment.status} />

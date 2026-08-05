@@ -24,7 +24,7 @@ public class PaymentVerification {
 
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     private VerificationStatus status;
 
     private String customerEmail;

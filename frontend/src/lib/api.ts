@@ -64,9 +64,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-type PaginatedResponse<T> = {
-  content: T[];
-};
 
 type BackendFraudResult = {
   id?: number;
@@ -204,14 +201,12 @@ export async function verifyOtp(
 // ---------------------------------------------------------------------------
 
 /**
- * Fetches recent payments from the backend.
+ * Fetches recent payments from the backend with risk scores and fraud results included.
+ * Payments are ordered by newest first.
  */
 export async function getPayments(): Promise<Payment[]> {
-  const response = await request<
-    PaginatedResponse<BackendPayment> | BackendPayment[]
-  >("/payments");
-  const rows = Array.isArray(response) ? response : response.content;
-  return rows.map(normalizePayment);
+  const response = await request<BackendPayment[]>("/payments/all");
+  return response.map(normalizePayment);
 }
 
 export async function createPayment(
@@ -347,6 +342,26 @@ export async function deleteFraudRule(id: number): Promise<void> {
 
 export async function getDeadLetterQueue(): Promise<DeadLetterEntry[]> {
   return request<DeadLetterEntry[]>("/dlq");
+}
+
+export async function getPendingAdminApprovalPayments(): Promise<Payment[]> {
+  const response = await request<BackendPayment[]>("/payments/pending-approval");
+  return response.map(normalizePayment);
+}
+
+export async function adminApprovePayment(id: number): Promise<Payment> {
+  const payment = await request<BackendPayment>(`/payments/${id}/admin-approve`, {
+    method: "POST",
+  });
+  return normalizePayment(payment);
+}
+
+export async function adminDeclinePayment(id: number, reason?: string): Promise<Payment> {
+  const payment = await request<BackendPayment>(`/payments/${id}/admin-decline`, {
+    method: "POST",
+    body: JSON.stringify({ reason: reason || "Declined by administrator" }),
+  });
+  return normalizePayment(payment);
 }
 
 export { ApiError };

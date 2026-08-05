@@ -85,11 +85,22 @@ public class PaymentOrchestrationService {
         RiskScore riskScore = riskScoringEngineService.saveRiskScore(payment.getId(), fraudEval);
         transition(payment, PaymentStatus.FRAUD_CHECKED, "FraudDetectionEngine", "Fraud Analyzed", fraudEval.explanation());
 
-        transition(payment, PaymentStatus.QUEUED, "QueueManager", "Queued", "Queued for settlement processing");
-        enqueueForProcessing(payment.getId());
-
-        if (riskScore.getDecision().equals("Manual Review")) {
-            notificationEngineService.notifyPaymentEvent(payment.getId(), "HIGH_RISK_PAYMENT", riskScore.getExplanation());
+        // Handle different risk score scenarios
+        if (riskScore.getScore() > 100) {
+            // Auto-reject payments with score > 100
+            payment.markAsFailed("RISK_SCORE_TOO_HIGH", "Payment automatically rejected due to risk score exceeding threshold (score: " + riskScore.getScore() + ")");
+            payment.setStatus(PaymentStatus.FAILED);
+            paymentRepository.save(payment);
+            auditEngineService.record(payment.getId(), "RiskEngine", "Payment Auto-Rejected", PaymentStatus.FRAUD_CHECKED, PaymentStatus.FAILED, 0L, "Risk score > 100");
+            notificationEngineService.notifyPaymentEvent(payment.getId(), "PAYMENT_AUTO_REJECTED", "Risk score: " + riskScore.getScore());
+        } else if (riskScore.getScore() >= 80 && riskScore.getScore() <= 100) {
+            // Require admin approval for scores 80-100
+            transition(payment, PaymentStatus.PENDING_ADMIN_APPROVAL, "RiskEngine", "Admin Approval Required", "Risk score requires manual admin review (score: " + riskScore.getScore() + ")");
+            notificationEngineService.notifyPaymentEvent(payment.getId(), "ADMIN_APPROVAL_REQUIRED", "Risk score: " + riskScore.getScore());
+        } else {
+            // Auto-process payments with score < 80
+            transition(payment, PaymentStatus.QUEUED, "QueueManager", "Queued", "Queued for settlement processing");
+            enqueueForProcessing(payment.getId());
         }
 
         systemEventService.emit("PAYMENT_CREATED", payment.getId(), payment.getPaymentReference());
@@ -98,6 +109,17 @@ public class PaymentOrchestrationService {
 
     public Page<Payment> getPayments(Pageable pageable) {
         return paymentRepository.findAll(pageable);
+    }
+
+    /**
+     * Get all payments with risk scores and fraud results included.
+     * Orders by newest first.
+     */
+    public List<PaymentPlatformResponse> getAllPaymentsWithRiskScores() {
+        List<Payment> payments = paymentRepository.findAllByOrderByCreatedAtDesc();
+        return payments.stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     public PaymentPlatformResponse getPayment(Long id) {
@@ -138,7 +160,59 @@ public class PaymentOrchestrationService {
     }
 
     public List<PaymentHistory> history(Long id) {
-        return paymentHistoryRepository.findByPaymentId(id);
+        return paymentHistoryRepository.findByPaymentIdOrderByChangedAtDesc(id);
+    }
+
+    @Transactional
+    public PaymentPlatformResponse adminApprovePayment(Long id) {
+        Payment payment = paymentRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Payment not found: " + id));
+        
+        if (payment.getStatus() != PaymentStatus.PENDING_ADMIN_APPROVAL) {
+            throw new IllegalStateException("Payment is not in PENDING_ADMIN_APPROVAL status");
+        }
+        
+        // Approve and queue for processing
+        transition(payment, PaymentStatus.QUEUED, "AdminReview", "Admin Approved", "Payment approved by administrator");
+        enqueueForProcessing(payment.getId());
+        notificationEngineService.notifyPaymentEvent(id, "PAYMENT_ADMIN_APPROVED", "Administrator approved the payment");
+        
+        return toResponse(payment);
+    }
+
+    @Transactional
+    public PaymentPlatformResponse adminDeclinePayment(Long id, String reason) {
+        Payment payment = paymentRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Payment not found: " + id));
+        
+        if (payment.getStatus() != PaymentStatus.PENDING_ADMIN_APPROVAL) {
+            throw new IllegalStateException("Payment is not in PENDING_ADMIN_APPROVAL status");
+        }
+        
+        // Decline the payment
+        payment.markAsFailed("ADMIN_DECLINED", reason != null ? reason : "Payment declined by administrator");
+        payment.setStatus(PaymentStatus.DECLINED);
+        paymentRepository.save(payment);
+        
+        PaymentHistory history = new PaymentHistory();
+        history.setPaymentId(payment.getId());
+        history.setOldStatus(PaymentStatus.PENDING_ADMIN_APPROVAL);
+        history.setNewStatus(PaymentStatus.DECLINED);
+        history.setReason(reason);
+        paymentHistoryRepository.save(history);
+        
+        auditEngineService.record(payment.getId(), "AdminReview", "Admin Declined", PaymentStatus.PENDING_ADMIN_APPROVAL, PaymentStatus.DECLINED, 0L, reason);
+        notificationEngineService.notifyPaymentEvent(id, "PAYMENT_ADMIN_DECLINED", reason);
+        
+        return toResponse(payment);
+    }
+
+    public List<PaymentPlatformResponse> getPendingAdminApprovalPayments() {
+        List<Payment> payments = paymentRepository.findByStatus(PaymentStatus.PENDING_ADMIN_APPROVAL);
+        return payments.stream()
+                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt())) // Newest first
+                .map(this::toResponse)
+                .toList();
     }
 
     private void enqueueForProcessing(Long paymentId) {

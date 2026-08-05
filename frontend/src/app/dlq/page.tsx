@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   cancelPayment,
@@ -271,35 +272,41 @@ export default function DeadLetterQueuePage() {
                     </div>
                   </div>
 
-                  {/* Actions */}
-                  <div className="border-t border-black/5 bg-slate-50 px-6 py-4">
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <button
-                        onClick={async () => {
-                          await retryPayment(entry.paymentId);
-                          await loadEntries();
-                        }}
-                        className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 font-medium text-emerald-700 hover:bg-emerald-100"
-                      >
-                        ↻ Retry Payment
-                      </button>
-                      <button
-                        onClick={async () => {
-                          if (
-                            window.confirm(
-                              "Are you sure? This will permanently cancel the payment.",
-                            )
-                          ) {
-                            await cancelPayment(entry.paymentId);
-                            await loadEntries();
-                          }
-                        }}
-                        className="rounded-lg bg-red-600 px-4 py-2 font-medium text-white hover:bg-red-700"
-                      >
-                        ✕ Cancel Payment
-                      </button>
-                    </div>
-                  </div>
+                   {/* Actions */}
+                   <div className="border-t border-black/5 bg-slate-50 px-6 py-4">
+                     <div className="flex flex-col gap-2 sm:flex-row">
+                       <Link
+                         href={`/payments/${entry.paymentId}`}
+                         className="rounded-lg border border-blue-300 bg-blue-50 px-4 py-2 font-medium text-blue-700 hover:bg-blue-100 text-center"
+                       >
+                         📋 View Details
+                       </Link>
+                       <button
+                         onClick={async () => {
+                           await retryPayment(entry.paymentId);
+                           await loadEntries();
+                         }}
+                         className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 font-medium text-emerald-700 hover:bg-emerald-100"
+                       >
+                         ↻ Retry Payment
+                       </button>
+                       <button
+                         onClick={async () => {
+                           if (
+                             window.confirm(
+                               "Are you sure? This will permanently cancel the payment.",
+                             )
+                           ) {
+                             await cancelPayment(entry.paymentId);
+                             await loadEntries();
+                           }
+                         }}
+                         className="rounded-lg bg-red-600 px-4 py-2 font-medium text-white hover:bg-red-700"
+                       >
+                         ✕ Cancel Payment
+                       </button>
+                     </div>
+                   </div>
                 </>
               )}
             </div>

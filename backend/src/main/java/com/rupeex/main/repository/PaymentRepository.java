@@ -44,4 +44,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     );
 
     long countBySourceAccountAndStatus(String sourceAccount, PaymentStatus status);
+
+    // Find all payments ordered by creation date descending (newest first)
+    List<Payment> findAllByOrderByCreatedAtDesc();
 }

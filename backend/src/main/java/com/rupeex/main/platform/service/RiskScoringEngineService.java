@@ -15,13 +15,22 @@ public class RiskScoringEngineService {
     }
 
     public RiskScore saveRiskScore(Long paymentId, FraudEvaluationResult fraudEvaluationResult) {
-        int bounded = Math.min(100, Math.max(0, fraudEvaluationResult.score()));
+        int score = fraudEvaluationResult.score(); // Don't bound - allow scores > 100
         RiskScore riskScore = new RiskScore();
         riskScore.setPaymentId(paymentId);
-        riskScore.setScore(bounded);
-        riskScore.setCategory(toCategory(bounded));
+        riskScore.setScore(score);
+        riskScore.setCategory(toCategory(score));
         riskScore.setExplanation(fraudEvaluationResult.explanation().isBlank() ? "No triggered rules" : fraudEvaluationResult.explanation());
-        riskScore.setDecision(bounded >= 81 ? "Manual Review" : "Auto Process");
+        
+        // Decision logic based on risk score
+        if (score > 100) {
+            riskScore.setDecision("Auto Reject");
+        } else if (score >= 80) {
+            riskScore.setDecision("Admin Approval Required");
+        } else {
+            riskScore.setDecision("Auto Process");
+        }
+        
         return riskScoreRepository.save(riskScore);
     }
 

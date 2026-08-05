@@ -18,7 +18,8 @@ export type PaymentStatus =
   | "COMPLETED"
   | "FAILED"
   | "CANCELLED"
-  | "REVERSED";
+  | "REVERSED"
+  | "PENDING_ADMIN_APPROVAL";
 
 export type AccountStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED" | "CLOSED";
 

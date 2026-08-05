@@ -31,13 +31,13 @@ public class PaymentHistory {
 
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     private PaymentStatus oldStatus;
 
 
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     private PaymentStatus newStatus;
 
 

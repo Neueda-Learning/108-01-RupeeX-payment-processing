@@ -32,7 +32,7 @@ MYSQL_DATABASE=rupeex_db
 MYSQL_USER=rupeex
 MYSQL_PASSWORD=${MYSQL_PASSWORD}
 
-SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/rupeex_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/rupeex_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&zeroDateTimeBehavior=CONVERT_TO_NULL
 SPRING_DATASOURCE_USERNAME=rupeex
 SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
 

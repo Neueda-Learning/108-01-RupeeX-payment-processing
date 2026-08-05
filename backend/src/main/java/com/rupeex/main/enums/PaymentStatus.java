@@ -26,6 +26,8 @@ public enum PaymentStatus {
 
     PENDING_VERIFICATION,
 
+    PENDING_ADMIN_APPROVAL,
+
     DECLINED,
 
     INITIATED,

@@ -14,7 +14,8 @@ public class PaymentStateMachine {
             PaymentStatus.CREATED, Set.of(PaymentStatus.VALIDATED, PaymentStatus.FAILED, PaymentStatus.CANCELLED),
             PaymentStatus.VALIDATED, Set.of(PaymentStatus.RISK_ANALYZED, PaymentStatus.FAILED),
             PaymentStatus.RISK_ANALYZED, Set.of(PaymentStatus.FRAUD_CHECKED, PaymentStatus.FAILED),
-            PaymentStatus.FRAUD_CHECKED, Set.of(PaymentStatus.QUEUED, PaymentStatus.FAILED),
+            PaymentStatus.FRAUD_CHECKED, Set.of(PaymentStatus.QUEUED, PaymentStatus.FAILED, PaymentStatus.PENDING_ADMIN_APPROVAL),
+            PaymentStatus.PENDING_ADMIN_APPROVAL, Set.of(PaymentStatus.QUEUED, PaymentStatus.DECLINED, PaymentStatus.FAILED),
             PaymentStatus.QUEUED, Set.of(PaymentStatus.PROCESSING, PaymentStatus.CANCELLED, PaymentStatus.FAILED),
             PaymentStatus.PROCESSING, Set.of(PaymentStatus.SENT, PaymentStatus.FAILED),
             PaymentStatus.SENT, Set.of(PaymentStatus.SETTLED, PaymentStatus.FAILED)
