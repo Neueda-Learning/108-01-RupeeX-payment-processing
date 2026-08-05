@@ -2,7 +2,7 @@ package com.rupeex.main.notification.template;
 
 import org.springframework.stereotype.Component;
 
-import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 
 /**
@@ -24,7 +24,7 @@ public class OtpEmailTemplateBuilder {
      */
     public String buildOtpBody(String recipientName, String otp, int expiryMinutes) {
         String name = (recipientName != null && !recipientName.isBlank()) ? recipientName : "Valued Customer";
-        String timestamp = OffsetDateTime.now().format(FORMATTER);
+        String timestamp = ZonedDateTime.now().format(FORMATTER);
 
         return "Dear " + name + ",\n\n"
                 + "You have initiated a payment on the RupeeX platform.\n"

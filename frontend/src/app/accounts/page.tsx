@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { getAccounts, getPayments, createPayment } from "@/lib/api";
+import { getAccounts, getPayments, createPayment, sendOtp, verifyOtp } from "@/lib/api";
 import type { Account, Payment, CreatePaymentInput } from "@/lib/types";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
@@ -50,6 +50,13 @@ export default function AccountsPage() {
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [sendSuccess, setSendSuccess] = useState<string | null>(null);
+
+  // OTP flow for the accounts page send form
+  const [sendStep, setSendStep] = useState<"form" | "otp">("form");
+  const [sendOtpValue, setSendOtpValue] = useState("");
+  const [sendOtpError, setSendOtpError] = useState<string | null>(null);
+  const [sendVerifying, setSendVerifying] = useState(false);
+  const [sendMaskedEmail, setSendMaskedEmail] = useState("");
 
   useEffect(() => {
     let cancelled = false;
