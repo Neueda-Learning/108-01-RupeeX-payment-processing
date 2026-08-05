@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SEED_FILE="$ROOT_DIR/scripts/seed-data.sql"
-SCHEMA_FILE="$ROOT_DIR/src/main/resources/schema.sql"
+SCHEMA_FILE="$ROOT_DIR/backend/src/main/resources/schema.sql"
 MIGRATION_FILE="$ROOT_DIR/scripts/add-payer-email-column.sql"
 ENV_FILE="$ROOT_DIR/.env"
 
