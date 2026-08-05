@@ -10,29 +10,29 @@ SET FOREIGN_KEY_CHECKS=0;
 
 -- ============================================================================
 -- STEP 2: TRUNCATE ALL TABLES (Removes all data, keeps structure)
+-- Tables listed here match schema.sql - all existing tables
 -- ============================================================================
-TRUNCATE TABLE risk_scores;
 TRUNCATE TABLE fraud_results;
+TRUNCATE TABLE risk_scores;
 TRUNCATE TABLE dead_letter_queue;
 TRUNCATE TABLE processing_queue;
 TRUNCATE TABLE payment_history;
+TRUNCATE TABLE audit_logs;
 TRUNCATE TABLE system_events;
 TRUNCATE TABLE notifications;
-TRUNCATE TABLE email_notification_log;
+TRUNCATE TABLE payment_metrics;
 TRUNCATE TABLE payments;
 TRUNCATE TABLE fraud_rules;
-TRUNCATE TABLE audit_logs;
 TRUNCATE TABLE accounts;
-TRUNCATE TABLE consents;
-TRUNCATE TABLE customers;
-TRUNCATE TABLE users;
 
 -- ============================================================================
 -- STEP 3: RE-ENABLE FOREIGN KEY CHECKS
 -- ============================================================================
 SET FOREIGN_KEY_CHECKS=1;
 
--- Seed accounts (member accounts + admin platform account)
+-- ============================================================================
+-- SEED ACCOUNTS (member accounts + admin platform account)
+-- ============================================================================
 INSERT INTO accounts (account_number, account_holder, account_type, currency, country_code, balance, status, email, created_at, updated_at)
 VALUES
   ('ACC-10001', 'Aarav Mehta',        'SAVINGS',  'INR', 'IN', 125000.00, 'ACTIVE', 'aarav.mehta@rupeex.seedaccount', NOW(), NOW()),
@@ -42,32 +42,6 @@ VALUES
   ('ACC-10005', 'Lina Das',           'SAVINGS',  'INR', 'IN',  62500.00, 'ACTIVE', 'lina.das@rupeex.seedaccount', NOW(), NOW()),
   ('ACC-10006', 'Atlas Logistics',    'CURRENT',  'INR', 'IN', 215000.00, 'ACTIVE', 'atlas.logistics@rupeex.seedaccount', NOW(), NOW()),
   ('ACC-ADMIN-001', 'Platform Admin', 'CURRENT',  'INR', 'IN',       0.00, 'ACTIVE', 'admin@rupeex.seedaccount', NOW(), NOW());
-
--- ============================================================================
--- SEED CUSTOMERS (onboarding service) — one per account + one ADMIN user
--- Fixed UUIDs allow idempotent re-seeding.
--- Status APPROVED so they are active members.
--- ============================================================================
-INSERT INTO customers (id, full_name, email, phone, dob, status, account_number, account_type, currency, country_code, role, created_at, updated_at)
-VALUES
-  (UUID_TO_BIN('a1000001-1001-1001-1001-100000000001'), 'Aarav Mehta',        'aarav.mehta@rupeex.seed',     '+91-9100010001', '1990-04-15', 'APPROVED', 'ACC-10001',    'SAVINGS', 'INR', 'IN', 'MEMBER', NOW(), NOW()),
-  (UUID_TO_BIN('a1000002-2002-2002-2002-200000000002'), 'Priya Sharma',       'priya.sharma@rupeex.seed',    '+91-9100020002', '1988-07-22', 'APPROVED', 'ACC-10002',    'CURRENT', 'INR', 'IN', 'MEMBER', NOW(), NOW()),
-  (UUID_TO_BIN('a1000003-3003-3003-3003-300000000003'), 'Neo Retail Pvt Ltd', 'neo.retail@rupeex.seed',      '+91-9100030003', NULL,         'APPROVED', 'ACC-10003',    'CURRENT', 'INR', 'IN', 'MEMBER', NOW(), NOW()),
-  (UUID_TO_BIN('a1000004-4004-4004-4004-400000000004'), 'Zen Imports LLC',    'zen.imports@rupeex.seed',     '+91-9100040004', NULL,         'APPROVED', 'ACC-10004',    'CURRENT', 'USD', 'US', 'MEMBER', NOW(), NOW()),
-  (UUID_TO_BIN('a1000005-5005-5005-5005-500000000005'), 'Lina Das',           'lina.das@rupeex.seed',        '+91-9100050005', '1995-11-30', 'APPROVED', 'ACC-10005',    'SAVINGS', 'INR', 'IN', 'MEMBER', NOW(), NOW()),
-  (UUID_TO_BIN('a1000006-6006-6006-6006-600000000006'), 'Atlas Logistics',    'atlas.logistics@rupeex.seed', '+91-9100060006', NULL,         'APPROVED', 'ACC-10006',    'CURRENT', 'INR', 'IN', 'MEMBER', NOW(), NOW()),
-  (UUID_TO_BIN('a0000000-0000-0000-0000-ad0000000001'), 'Platform Admin',     'admin@rupeex.seed',           '+91-9000000001', NULL,         'APPROVED', 'ACC-ADMIN-001','CURRENT', 'INR', 'IN', 'ADMIN',  NOW(), NOW());
-
--- Seed consents for all customers (TERMS_AND_PRIVACY accepted)
-INSERT INTO consents (customer_id, consent_type, consent_version, accepted, accepted_at, created_at)
-VALUES
-  (UUID_TO_BIN('a1000001-1001-1001-1001-100000000001'), 'TERMS_AND_PRIVACY', 'v1.0', TRUE, NOW(), NOW()),
-  (UUID_TO_BIN('a1000002-2002-2002-2002-200000000002'), 'TERMS_AND_PRIVACY', 'v1.0', TRUE, NOW(), NOW()),
-  (UUID_TO_BIN('a1000003-3003-3003-3003-300000000003'), 'TERMS_AND_PRIVACY', 'v1.0', TRUE, NOW(), NOW()),
-  (UUID_TO_BIN('a1000004-4004-4004-4004-400000000004'), 'TERMS_AND_PRIVACY', 'v1.0', TRUE, NOW(), NOW()),
-  (UUID_TO_BIN('a1000005-5005-5005-5005-500000000005'), 'TERMS_AND_PRIVACY', 'v1.0', TRUE, NOW(), NOW()),
-  (UUID_TO_BIN('a1000006-6006-6006-6006-600000000006'), 'TERMS_AND_PRIVACY', 'v1.0', TRUE, NOW(), NOW()),
-  (UUID_TO_BIN('a0000000-0000-0000-0000-ad0000000001'), 'TERMS_AND_PRIVACY', 'v1.0', TRUE, NOW(), NOW());
 
 -- ============================================================================
 -- FRAUD RULES CONFIGURATION - All 7 Rule Types with Proper Settings
