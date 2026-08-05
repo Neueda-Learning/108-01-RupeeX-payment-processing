@@ -6,7 +6,6 @@ import Link from "next/link";
 import { getPendingAdminApprovalPayments, adminApprovePayment, adminDeclinePayment } from "@/lib/api";
 import type { Payment } from "@/lib/types";
 import { formatCurrency, formatDateTime } from "@/lib/format";
-import { StatusBadge } from "@/components/status-badge";
 import { useUserStore } from "@/lib/user-store";
 
 export default function AdminReviewPage() {
@@ -26,11 +25,6 @@ export default function AdminReviewPage() {
     }
   }, [currentUser, router]);
 
-  // Fetch pending approval payments
-  useEffect(() => {
-    loadPendingPayments();
-  }, []);
-
   const loadPendingPayments = () => {
     setLoading(true);
     setError(null);
@@ -45,6 +39,11 @@ export default function AdminReviewPage() {
         setLoading(false);
       });
   };
+
+  // Fetch pending approval payments
+  useEffect(() => {
+    loadPendingPayments();
+  }, []);
 
   const handleApprove = async (paymentId: number) => {
     setProcessing(paymentId);
