@@ -28,7 +28,7 @@ class NotificationControllerTest {
     void sendTestNotification_ValidRequest_Returns202Accepted() throws Exception {
         doNothing().when(notificationService).sendNotification(any(NotificationRequest.class));
 
-        mockMvc.perform(post("/api/notifications/test")
+        mockMvc.perform(post("/notifications/test")
                 .contentType("application/json")
                 .content("{\"toEmail\":\"test@example.com\"}"))
                 .andExpect(status().isAccepted())
@@ -40,7 +40,7 @@ class NotificationControllerTest {
     @Test
     @DisplayName("Should reject notification with null email")
     void sendTestNotification_NullEmail_Returns400BadRequest() throws Exception {
-        mockMvc.perform(post("/api/notifications/test")
+        mockMvc.perform(post("/notifications/test")
                 .contentType("application/json")
                 .content("{\"toEmail\":null}"))
                 .andExpect(status().isBadRequest())
@@ -52,7 +52,7 @@ class NotificationControllerTest {
     @Test
     @DisplayName("Should reject notification with empty email")
     void sendTestNotification_EmptyEmail_Returns400BadRequest() throws Exception {
-        mockMvc.perform(post("/api/notifications/test")
+        mockMvc.perform(post("/notifications/test")
                 .contentType("application/json")
                 .content("{\"toEmail\":\"\"}"))
                 .andExpect(status().isBadRequest())
@@ -64,7 +64,7 @@ class NotificationControllerTest {
     @Test
     @DisplayName("Should reject notification with blank email")
     void sendTestNotification_BlankEmail_Returns400BadRequest() throws Exception {
-        mockMvc.perform(post("/api/notifications/test")
+        mockMvc.perform(post("/notifications/test")
                 .contentType("application/json")
                 .content("{\"toEmail\":\"   \"}"))
                 .andExpect(status().isBadRequest())
@@ -78,7 +78,7 @@ class NotificationControllerTest {
     void sendTestNotification_ValidEmail_Success() throws Exception {
         doNothing().when(notificationService).sendNotification(any(NotificationRequest.class));
 
-        mockMvc.perform(post("/api/notifications/test")
+        mockMvc.perform(post("/notifications/test")
                 .contentType("application/json")
                 .content("{\"toEmail\":\"user@example.com\"}"))
                 .andExpect(status().isAccepted())
@@ -92,7 +92,7 @@ class NotificationControllerTest {
     void sendTestNotification_CorrectContentType_Success() throws Exception {
         doNothing().when(notificationService).sendNotification(any(NotificationRequest.class));
 
-        mockMvc.perform(post("/api/notifications/test")
+        mockMvc.perform(post("/notifications/test")
                 .contentType("application/json")
                 .content("{\"toEmail\":\"test@example.com\"}"))
                 .andExpect(status().isAccepted())
