@@ -11,6 +11,7 @@ const ALL_NAV_LINKS = [
   { href: "/admin", label: "Admin", adminOnly: true, memberHidden: false },
   { href: "/accounts", label: "Accounts", adminOnly: false, memberHidden: false },
   { href: "/payments", label: "Payments", adminOnly: false, memberHidden: true },
+  { href: "/bot", label: "Assistant", adminOnly: false, memberHidden: false },
   { href: "/rules", label: "Fraud Rules", adminOnly: true, memberHidden: false },
   { href: "/events", label: "Events", adminOnly: true, memberHidden: false },
   { href: "/dlq", label: "DLQ", adminOnly: true, memberHidden: false },
