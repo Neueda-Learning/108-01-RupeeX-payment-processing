@@ -21,7 +21,7 @@ public class RiskScore {
     private int score;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     private RiskCategory category;
 
     @Column(nullable = false, length = 2000)

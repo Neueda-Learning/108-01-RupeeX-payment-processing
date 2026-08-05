@@ -19,7 +19,7 @@ public class FraudRule {
     private String description;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "rule_type", nullable = false)
+    @Column(name = "rule_type", nullable = false, length = 80)
     private FraudRuleType ruleType;
 
     @Column(nullable = false)

@@ -137,6 +137,36 @@ CREATE TABLE IF NOT EXISTS system_events (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS payment_verifications (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    payment_id BIGINT NOT NULL UNIQUE,
+    customer_id VARCHAR(100) NOT NULL,
+    verification_token VARCHAR(255) NOT NULL UNIQUE,
+    status VARCHAR(50) NOT NULL,
+    customer_email VARCHAR(255),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_verification_payment FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- Safety net: Hibernate 6 + MySQLDialect maps @Enumerated(EnumType.STRING)
+-- fields to a native MySQL ENUM(...) column by default (fixed value list
+-- baked in at table-creation time) unless
+-- hibernate.type.preferred_enum_jdbc_type=VARCHAR is set. Any table created
+-- before that property existed may still have a native ENUM column, which
+-- rejects newly added enum constants (e.g. a new PaymentStatus value) with
+-- "Data truncated for column ...". These MODIFY statements are idempotent and
+-- safe to re-run on every startup; they force the columns back to plain
+-- VARCHAR so new enum values are always accepted.
+ALTER TABLE payments MODIFY COLUMN status VARCHAR(50) NOT NULL;
+ALTER TABLE payment_history MODIFY COLUMN old_status VARCHAR(50) NULL;
+ALTER TABLE payment_history MODIFY COLUMN new_status VARCHAR(50) NOT NULL;
+ALTER TABLE audit_logs MODIFY COLUMN before_state VARCHAR(50) NULL;
+ALTER TABLE audit_logs MODIFY COLUMN after_state VARCHAR(50) NULL;
+ALTER TABLE risk_scores MODIFY COLUMN category VARCHAR(50) NOT NULL;
+ALTER TABLE fraud_rules MODIFY COLUMN rule_type VARCHAR(80) NOT NULL;
+ALTER TABLE payment_verifications MODIFY COLUMN status VARCHAR(50) NOT NULL;
+
 INSERT IGNORE INTO fraud_rules (name, description, rule_type, threshold, score_contribution, enabled)
 VALUES
 ('Large Transaction', 'Flags transactions above threshold', 'LARGE_TRANSACTION', 20000, 30, TRUE),

@@ -72,7 +72,7 @@ public class Payment {
 
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     private PaymentStatus status;
 
 

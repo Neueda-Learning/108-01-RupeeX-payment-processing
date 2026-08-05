@@ -25,11 +25,11 @@ public class AuditLog {
     private String action;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "before_state")
+    @Column(name = "before_state", length = 50)
     private PaymentStatus beforeState;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "after_state")
+    @Column(name = "after_state", length = 50)
     private PaymentStatus afterState;
 
     @Column(name = "processing_time_ms")
