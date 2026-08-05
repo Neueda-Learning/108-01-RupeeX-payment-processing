@@ -167,6 +167,35 @@ ALTER TABLE risk_scores MODIFY COLUMN category VARCHAR(50) NOT NULL;
 ALTER TABLE fraud_rules MODIFY COLUMN rule_type VARCHAR(80) NOT NULL;
 ALTER TABLE payment_verifications MODIFY COLUMN status VARCHAR(50) NOT NULL;
 
+-- Data repair: MySQL's legacy zero-date sentinel ('0000-00-00 00:00:00') can
+-- end up in DATETIME/TIMESTAMP columns (e.g. rows inserted without an
+-- explicit value on a column that predates its DEFAULT CURRENT_TIMESTAMP, or
+-- data imported/restored from a dump with strict mode disabled). Reading such
+-- a value back throws "Zero date value prohibited" in MySQL Connector/J,
+-- failing the entire query. These UPDATEs are idempotent (only rows currently
+-- holding the sentinel are touched) and repair the data at the source, in
+-- addition to the zeroDateTimeBehavior=CONVERT_TO_NULL JDBC URL option which
+-- only masks the symptom on read.
+UPDATE accounts SET created_at = NOW() WHERE created_at = '0000-00-00 00:00:00';
+UPDATE accounts SET updated_at = NOW() WHERE updated_at = '0000-00-00 00:00:00';
+UPDATE payments SET created_at = NOW() WHERE created_at = '0000-00-00 00:00:00';
+UPDATE payments SET updated_at = NOW() WHERE updated_at = '0000-00-00 00:00:00';
+UPDATE payment_history SET changed_at = NOW() WHERE changed_at = '0000-00-00 00:00:00';
+UPDATE audit_logs SET created_at = NOW() WHERE created_at = '0000-00-00 00:00:00';
+UPDATE fraud_rules SET created_at = NOW() WHERE created_at = '0000-00-00 00:00:00';
+UPDATE fraud_rules SET updated_at = NOW() WHERE updated_at = '0000-00-00 00:00:00';
+UPDATE fraud_results SET created_at = NOW() WHERE created_at = '0000-00-00 00:00:00';
+UPDATE risk_scores SET created_at = NOW() WHERE created_at = '0000-00-00 00:00:00';
+UPDATE processing_queue SET next_attempt_at = NOW() WHERE next_attempt_at = '0000-00-00 00:00:00';
+UPDATE processing_queue SET created_at = NOW() WHERE created_at = '0000-00-00 00:00:00';
+UPDATE processing_queue SET updated_at = NOW() WHERE updated_at = '0000-00-00 00:00:00';
+UPDATE dead_letter_queue SET created_at = NOW() WHERE created_at = '0000-00-00 00:00:00';
+UPDATE notifications SET created_at = NOW() WHERE created_at = '0000-00-00 00:00:00';
+UPDATE payment_metrics SET recorded_at = NOW() WHERE recorded_at = '0000-00-00 00:00:00';
+UPDATE system_events SET created_at = NOW() WHERE created_at = '0000-00-00 00:00:00';
+UPDATE payment_verifications SET created_at = NOW() WHERE created_at = '0000-00-00 00:00:00';
+UPDATE payment_verifications SET updated_at = NOW() WHERE updated_at = '0000-00-00 00:00:00';
+
 INSERT IGNORE INTO fraud_rules (name, description, rule_type, threshold, score_contribution, enabled)
 VALUES
 ('Large Transaction', 'Flags transactions above threshold', 'LARGE_TRANSACTION', 20000, 30, TRUE),
