@@ -67,6 +67,7 @@ export interface CreatePaymentInput {
   originCountry: string;
   destinationCountry: string;
   idempotencyKey?: string;
+  payerEmail?: string;
 }
 
 export interface Account {
@@ -82,6 +83,7 @@ export interface Account {
   ifscCode?: string;
   swiftCode?: string;
   status: AccountStatus | string;
+  email?: string;
   metadata?: string;
   createdAt: string;
   updatedAt: string;
