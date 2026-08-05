@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
+import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,7 @@ import java.util.stream.Collectors;
 public class CustomerOnboardingServiceImpl implements CustomerOnboardingService {
 
     private static final Logger log = LoggerFactory.getLogger(CustomerOnboardingServiceImpl.class);
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final CustomerRepository customerRepository;
     private final ConsentRepository consentRepository;
@@ -59,13 +61,18 @@ public class CustomerOnboardingServiceImpl implements CustomerOnboardingService 
             throw new CustomerAlreadyExistsException("Customer already exists for phone: " + request.getPhone());
         }
 
+        String accountNumber;
+        do {
+            accountNumber = String.format("RUPX%06d", SECURE_RANDOM.nextInt(1_000_000));
+        } while (customerRepository.existsByAccountNumber(accountNumber));
+
         Customer customer = new Customer();
         customer.setFullName(request.getFullName());
         customer.setEmail(request.getEmail());
         customer.setPhone(request.getPhone());
         customer.setDob(request.getDob());
         customer.setExternalRef(request.getExternalRef());
-        customer.setAccountNumber(request.getAccountNumber());
+        customer.setAccountNumber(accountNumber);
         customer.setAccountType(request.getAccountType());
         customer.setCurrency(request.getCurrency());
         customer.setCountryCode(request.getCountryCode());
