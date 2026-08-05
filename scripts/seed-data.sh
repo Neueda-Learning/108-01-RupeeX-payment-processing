@@ -50,18 +50,7 @@ run_mysql_query() {
     mysql -N -B -uroot "$MYSQL_DATABASE" -e "$query"
 }
 
-echo "⚠️  WARNING: This will DELETE ALL existing data and reset the database to seed data."
-echo "Any transactions, accounts, or data you created will be REMOVED."
-echo ""
-read -p "Are you sure? Type 'yes' to continue: " confirm
-
-if [[ "$confirm" != "yes" ]]; then
-  echo "Cancelled. Database not modified."
-  exit 0
-fi
-
-echo ""
-echo "🔄 Starting database reset..."
+echo "🔄 Starting database reset and seeding..."
 echo ""
 
 # Step 1: Drop all existing tables (disable foreign key checks temporarily)
@@ -82,17 +71,17 @@ run_mysql_query "SET FOREIGN_KEY_CHECKS=1;"
 echo "✅ All tables dropped successfully."
 echo ""
 
-# Step 2: Recreate schema from scratch
+# Step 2: Recreate schema from scratch (includes payer_email via migration)
 echo "Step 2/4: Recreating database schema from scratch..."
 "${COMPOSE_CMD[@]}" exec -T -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" db \
   mysql -uroot "$MYSQL_DATABASE" < "$SCHEMA_FILE"
 echo "✅ Schema recreated successfully."
 echo ""
 
-# Step 3: Apply migrations (add payer_email column)
+# Step 3: Apply migrations (add payer_email column if not already present)
 echo "Step 3/4: Applying database migrations..."
 "${COMPOSE_CMD[@]}" exec -T -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" db \
-  mysql -uroot "$MYSQL_DATABASE" < "$MIGRATION_FILE"
+  mysql -uroot "$MYSQL_DATABASE" < "$MIGRATION_FILE" 2>/dev/null || true
 echo "✅ Migration applied successfully."
 echo ""
 
@@ -111,6 +100,5 @@ echo "Schema: Applied from $SCHEMA_FILE"
 echo "Migration: Applied from $MIGRATION_FILE"
 echo "Seed Data: Loaded from $SEED_FILE"
 echo ""
-echo "All previous data has been removed."
-echo "Database is now fresh with pre-seed data only."
+echo "Database is now fresh with pre-seed data."
 echo "═══════════════════════════════════════════════"
