@@ -167,6 +167,42 @@ function normalizePayment(payment: BackendPayment): Payment {
   };
 }
 
+// ---------------------------------------------------------------------------
+// OTP
+// ---------------------------------------------------------------------------
+
+/**
+ * Sends a 4-digit OTP to the email registered on the given source account.
+ * Throws ApiError on failure.
+ */
+export async function sendOtp(email: string, sourceAccount: string): Promise<void> {
+  await fetch(`${API_BASE_URL}/otp/send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, sourceAccount }),
+  }).then(async (res) => {
+    if (!res.ok) {
+      throw new ApiError(`Failed to send OTP`, res.status);
+    }
+  });
+}
+
+/**
+ * Verifies the OTP entered by the user.
+ * Returns { valid: true } on success, { valid: false } otherwise.
+ */
+export async function verifyOtp(
+  email: string,
+  otp: string,
+): Promise<{ valid: boolean; message: string }> {
+  return request<{ valid: boolean; message: string }>("/otp/verify", {
+    method: "POST",
+    body: JSON.stringify({ email, otp }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+
 /**
  * Fetches recent payments from the backend.
  */
@@ -195,6 +231,7 @@ export async function createPayment(
     originCountry: input.originCountry,
     destinationCountry: input.destinationCountry,
     idempotencyKey,
+    ...(input.payerEmail ? { payerEmail: input.payerEmail } : {}),
   };
 
   const created = await request<BackendPayment>("/payments", {
