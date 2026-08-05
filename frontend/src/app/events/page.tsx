@@ -211,7 +211,7 @@ export default function EventsPage() {
                             href={`/payments/${event.entityId}`}
                             className="rounded-lg border border-blue-300 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
                           >
-                            📋 Details
+                             Details
                           </Link>
                         </>
                       )}
