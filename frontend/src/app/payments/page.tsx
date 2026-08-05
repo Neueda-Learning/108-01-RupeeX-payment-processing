@@ -60,17 +60,16 @@ export default function PaymentsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8 px-6 py-10 lg:px-8">
-      <header className="space-y-2">
-        <p className="text-sm font-semibold uppercase tracking-wide text-orange-700">
+    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 lg:px-6">
+      <header className="space-y-1">
+        <p className="text-xs font-semibold uppercase tracking-wide text-orange-700">
           Payments Workspace
         </p>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-          Create a payment and track lifecycle status
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          Create and track payments
         </h1>
-        <p className="text-slate-600">
-          Use this screen to submit transactions and monitor status updates for
-          each payment.
+        <p className="text-xs text-slate-600">
+          Submit transactions and monitor status updates
         </p>
       </header>
 
@@ -79,8 +78,8 @@ export default function PaymentsPage() {
       />
 
       <section className="panel rounded-2xl overflow-hidden">
-        <div className="border-b border-black/5 px-6 py-4">
-          <h2 className="text-lg font-semibold text-slate-900">Payment list</h2>
+        <div className="border-b border-black/5 px-4 py-3">
+          <h2 className="text-base font-semibold text-slate-900">Payment list</h2>
         </div>
 
         <div className="overflow-x-auto">
@@ -88,17 +87,17 @@ export default function PaymentsPage() {
             <thead className="bg-slate-50">
               <tr>
                 {[
-                  "Payment Label",
-                  "Source -> Destination",
+                  "Payment",
+                  "Route",
                   "Amount",
-                  "Risk Score",
-                  "Current Status",
+                  "Risk",
+                  "Status",
                   "Created",
-                  "Open Details",
+                  "Details",
                 ].map((header) => (
                   <th
                     key={header}
-                    className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500"
+                    className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-slate-500"
                   >
                     {header}
                   </th>
@@ -110,7 +109,7 @@ export default function PaymentsPage() {
                 <tr>
                   <td
                     colSpan={7}
-                    className="px-6 py-8 text-center text-sm text-slate-500"
+                    className="px-3 py-6 text-center text-xs text-slate-500"
                   >
                     Loading payments...
                   </td>
@@ -119,7 +118,7 @@ export default function PaymentsPage() {
                 <tr>
                   <td
                     colSpan={7}
-                    className="px-6 py-8 text-center text-sm text-slate-500"
+                    className="px-3 py-6 text-center text-xs text-slate-500"
                   >
                     No payments found.
                   </td>
@@ -127,27 +126,29 @@ export default function PaymentsPage() {
               ) : (
                 payments.map((payment) => (
                   <tr key={payment.id}>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm">
-                      <p className="font-medium text-slate-900">
-                        {payment.reference ?? `Payment #${payment.id}`}
+                    <td className="px-3 py-2 text-xs">
+                      <p className="font-medium text-slate-900 truncate">
+                        {payment.reference ?? `Pmt #${payment.id}`}
                       </p>
-                      <p className="text-xs text-slate-500">
-                        {payment.idempotencyKey}
+                      <p className="text-xs text-slate-500 truncate">
+                        {payment.idempotencyKey?.substring(0, 12)}...
                       </p>
                     </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">
-                      {payment.sourceAccount}
-                      <span className="mx-1 text-slate-400">→</span>
-                      {payment.destinationAccount}
+                    <td className="px-3 py-2 text-xs text-slate-600">
+                      <div className="flex items-center gap-0.5 truncate">
+                        <span className="truncate">{payment.sourceAccount?.substring(0, 8)}</span>
+                        <span className="text-slate-400 flex-shrink-0">→</span>
+                        <span className="truncate">{payment.destinationAccount?.substring(0, 8)}</span>
+                      </div>
                     </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-slate-900">
+                    <td className="px-3 py-2 text-xs font-semibold text-slate-900 whitespace-nowrap">
                       {formatCurrency(payment.amount, payment.currency)}
                     </td>
-                    <td className="whitespace-nowrap px-6 py-4">
+                    <td className="px-3 py-2">
                       {payment.riskScore ? (
-                        <div className="flex flex-col gap-1">
+                        <div className="flex flex-col gap-0.5">
                           <span
-                            className={`inline-flex w-fit rounded-full px-2 py-0.5 text-xs font-bold ${
+                            className={`inline-flex w-fit rounded-full px-1.5 py-0.5 text-xs font-bold ${
                               payment.riskScore.score >= 81
                                 ? "bg-red-100 text-red-700"
                                 : payment.riskScore.score >= 50
@@ -159,26 +160,26 @@ export default function PaymentsPage() {
                           </span>
                           <span className="text-xs text-slate-500">
                             {payment.riskScore.decision === "Manual Review"
-                              ? "⚠️ Manual"
-                              : "✓ Auto"}
+                              ? "⚠️"
+                              : "✓"}
                           </span>
                         </div>
                       ) : (
                         <span className="text-xs text-slate-400">—</span>
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-6 py-4">
+                    <td className="px-3 py-2">
                       <StatusBadge status={payment.status} />
                     </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-500">
-                      {formatDateTime(payment.createdAt)}
+                    <td className="px-3 py-2 text-xs text-slate-500 whitespace-nowrap">
+                      {formatDateTime(payment.createdAt).split(" ")[0]}
                     </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm">
+                    <td className="px-3 py-2 text-xs">
                       <Link
                         href={`/payments/${payment.id}`}
-                        className="font-medium text-orange-700 hover:text-orange-800"
+                        className="font-medium text-orange-700 hover:text-orange-800 hover:underline"
                       >
-                        Details
+                        View
                       </Link>
                     </td>
                   </tr>
