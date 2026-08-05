@@ -18,6 +18,14 @@ triggered, contribution, reason).
 - retry_payment: requires paymentId. Only valid for payments in FAILED state.
 - cancel_payment: requires paymentId. Only valid for payments not yet SETTLED.
 - query_payments: filters by status, account, or date range.
+- check_balance: requires an account number (sourceAccount field). Read-only,
+  returns the account holder, currency, and current balance. No confirmation
+  needed.
+- list_accounts: lists all known accounts with their balances. Read-only, no
+  confirmation needed.
+- payment_status: requires paymentId. Read-only, returns the current status
+  of a specific payment. No confirmation needed.
+
 
 # High-Value Confirmation Rule
 

@@ -22,7 +22,15 @@ const SLM_MODEL = process.env.SLM_MODEL || 'qwen2.5:0.5b';
 const SLM_TIMEOUT_MS = Number(process.env.SLM_TIMEOUT_MS || 8000);
 
 export type SlmIntent = {
-  type: 'create_payment' | 'retry_payment' | 'cancel_payment' | 'query_payments' | 'unknown';
+  type:
+    | 'create_payment'
+    | 'retry_payment'
+    | 'cancel_payment'
+    | 'query_payments'
+    | 'check_balance'
+    | 'list_accounts'
+    | 'payment_status'
+    | 'unknown';
   amount?: number;
   currency?: string;
   sourceAccount?: string;
@@ -33,9 +41,12 @@ export type SlmIntent = {
 
 const SYSTEM_PROMPT = `You are an intent extraction engine for a payment processing system.
 Given a user's natural language request, respond with ONLY a single-line JSON object (no markdown, no explanation) matching this schema:
-{"type":"create_payment|retry_payment|cancel_payment|query_payments|unknown","amount":number|null,"currency":string|null,"sourceAccount":string|null,"destinationAccount":string|null,"paymentId":string|null,"confidence":number}
+{"type":"create_payment|retry_payment|cancel_payment|query_payments|check_balance|list_accounts|payment_status|unknown","amount":number|null,"currency":string|null,"sourceAccount":string|null,"destinationAccount":string|null,"paymentId":string|null,"confidence":number}
 Rules:
 - "type" must be one of the enumerated values.
+- For check_balance requests, put the account number to look up in "sourceAccount".
+- For list_accounts requests, all fields except type/confidence should be null.
+- For payment_status requests, put the payment id in "paymentId".
 - Use null for fields that are not present in the request.
 - "confidence" is a number between 0 and 1 reflecting how sure you are.
 - Do not include any text outside the JSON object.`;
@@ -85,7 +96,16 @@ function parseModelJson(raw: string): SlmIntent | null {
   try {
     const parsed = JSON.parse(candidate);
     const type = parsed.type;
-    const allowed = ['create_payment', 'retry_payment', 'cancel_payment', 'query_payments', 'unknown'];
+    const allowed = [
+      'create_payment',
+      'retry_payment',
+      'cancel_payment',
+      'query_payments',
+      'check_balance',
+      'list_accounts',
+      'payment_status',
+      'unknown',
+    ];
     if (!allowed.includes(type)) return null;
     return {
       type,

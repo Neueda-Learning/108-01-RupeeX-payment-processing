@@ -6,6 +6,9 @@ export type BotCommand = {
   confidence: number;
   summary?: string;
   requiresConfirmation?: boolean;
+  // Read-only lookups (balance/status/list) execute immediately and never
+  // touch the command queue — no side effects, so no confirmation needed.
+  readOnly?: boolean;
   source?: 'slm' | 'rules';
 };
 
@@ -72,6 +75,33 @@ function mapSlmToCommand(slm: Awaited<ReturnType<typeof extractIntentWithSLM>>, 
         payload: { raw: text },
         confidence: result.confidence ?? 0.6,
         summary: 'Query payments',
+        source: 'slm',
+      };
+    case 'check_balance':
+      return {
+        type: 'check_balance',
+        payload: { accountNumber: result.sourceAccount, raw: text },
+        confidence: result.confidence ?? 0.7,
+        summary: `Check balance for ${result.sourceAccount ?? 'account'}`,
+        readOnly: true,
+        source: 'slm',
+      };
+    case 'list_accounts':
+      return {
+        type: 'list_accounts',
+        payload: { raw: text },
+        confidence: result.confidence ?? 0.7,
+        summary: 'List accounts',
+        readOnly: true,
+        source: 'slm',
+      };
+    case 'payment_status':
+      return {
+        type: 'payment_status',
+        payload: { paymentId: result.paymentId, raw: text },
+        confidence: result.confidence ?? 0.7,
+        summary: `Check status of payment ${result.paymentId ?? ''}`,
+        readOnly: true,
         source: 'slm',
       };
     default:
@@ -148,6 +178,41 @@ export function parseIntentRules(text: string, userId?: string): BotCommand {
     };
   }
 
+  if (/\bbalance\b/.test(t)) {
+    const accountNumber = extractAccountNumber(t);
+    return {
+      type: 'check_balance',
+      payload: { accountNumber, raw: text },
+      confidence: accountNumber ? 0.8 : 0.4,
+      summary: `Check balance for ${accountNumber ?? 'account'}`,
+      readOnly: true,
+      source: 'rules',
+    };
+  }
+
+  if (/(list|show|all)\b.*\baccounts?\b/.test(t)) {
+    return {
+      type: 'list_accounts',
+      payload: { raw: text },
+      confidence: 0.8,
+      summary: 'List accounts',
+      readOnly: true,
+      source: 'rules',
+    };
+  }
+
+  if (/status\b.*\bpayment\b|\bpayment\b.*\bstatus\b/.test(t)) {
+    const idMatch = t.match(/#?(\d+)/);
+    return {
+      type: 'payment_status',
+      payload: { paymentId: idMatch ? idMatch[1] : undefined, raw: text },
+      confidence: idMatch ? 0.85 : 0.4,
+      summary: `Check status of payment ${idMatch ? idMatch[1] : ''}`,
+      readOnly: true,
+      source: 'rules',
+    };
+  }
+
   return {
     type: 'unknown',
     payload: { raw: text },
@@ -155,4 +220,18 @@ export function parseIntentRules(text: string, userId?: string): BotCommand {
     summary: 'Could not parse intent',
     source: 'rules',
   };
+}
+
+/**
+ * Best-effort account number extraction for single-account queries (e.g.
+ * balance checks): tries "account <id>" phrasing first, then falls back to
+ * common account-number shapes like "ACC-10001" or a bare numeric id.
+ */
+function extractAccountNumber(t: string): string | undefined {
+  const explicit = t.match(/account\s*(?:number\s*)?([a-z0-9\-]+)/i);
+  if (explicit) return explicit[1].toUpperCase();
+  const shaped = t.match(/\b([a-z]{2,6}-\d{3,10})\b/i);
+  if (shaped) return shaped[1].toUpperCase();
+  const bare = t.match(/\b(\d{4,})\b/);
+  return bare ? bare[1] : undefined;
 }

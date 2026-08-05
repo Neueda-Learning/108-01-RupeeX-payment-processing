@@ -6,6 +6,7 @@ import { publishCommand, connectRabbit } from './rabbit';
 import { startWorker } from './worker';
 import { isSlmAvailable } from './slm';
 import { initRag, getRagStatus } from './rag';
+import { getAccountBalance, listAccounts, getPaymentStatus } from './backendClient';
 
 dotenv.config();
 
@@ -18,12 +19,44 @@ app.post('/nl', async (req, res) => {
     const { text, userId } = req.body;
     if (!text) return res.status(400).json({ error: 'text required' });
     const intent = await parseIntent(text, userId);
+
+    // Read-only lookups have no side effects and don't need confirmation or
+    // queueing — resolve them immediately and return the data inline.
+    if (intent.readOnly) {
+      const result = await resolveReadOnlyIntent(intent);
+      return res.json({ intent, ...result });
+    }
+
     return res.json({ intent });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'internal' });
   }
 });
+
+async function resolveReadOnlyIntent(intent: { type: string; payload: any }): Promise<{ result?: unknown; error?: string }> {
+  try {
+    if (intent.type === 'check_balance') {
+      if (!intent.payload?.accountNumber) return { error: 'No account number found in the request.' };
+      const account = await getAccountBalance(intent.payload.accountNumber);
+      return { result: account };
+    }
+    if (intent.type === 'list_accounts') {
+      const accounts = await listAccounts();
+      return { result: accounts };
+    }
+    if (intent.type === 'payment_status') {
+      if (!intent.payload?.paymentId) return { error: 'No payment id found in the request.' };
+      const payment = await getPaymentStatus(intent.payload.paymentId);
+      return { result: payment };
+    }
+    return { error: 'Unsupported lookup.' };
+  } catch (err: any) {
+    const status = err?.response?.status;
+    if (status === 404) return { error: 'Not found.' };
+    return { error: err?.response?.data?.message || err.message || 'Lookup failed.' };
+  }
+}
 
 app.get('/slm/status', async (_req, res) => {
   const available = await isSlmAvailable();

@@ -11,16 +11,44 @@ type PaymentPayload = {
   sourceAccount?: string;
   destinationAccount?: string;
   paymentId?: string;
+  accountNumber?: string;
   raw?: string;
 };
 
 type BotCommand = {
-  type: 'create_payment' | 'retry_payment' | 'cancel_payment' | 'query_payments' | 'unknown';
+  type:
+    | 'create_payment'
+    | 'retry_payment'
+    | 'cancel_payment'
+    | 'query_payments'
+    | 'check_balance'
+    | 'list_accounts'
+    | 'payment_status'
+    | 'unknown';
   payload: PaymentPayload;
   confidence: number;
   summary?: string;
   requiresConfirmation?: boolean;
+  readOnly?: boolean;
   source?: 'slm' | 'rules';
+};
+
+type AccountInfo = {
+  accountNumber: string;
+  accountHolder: string;
+  currency: string;
+  balance: number;
+  status: string;
+};
+
+type PaymentInfo = {
+  paymentId: number;
+  amount: number;
+  currency: string;
+  sourceAccount: string;
+  destinationAccount: string;
+  status: string;
+  errorMessage?: string;
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -28,7 +56,19 @@ const TYPE_LABELS: Record<string, string> = {
   retry_payment: 'Retry Payment',
   cancel_payment: 'Cancel Payment',
   query_payments: 'Query Payments',
+  check_balance: 'Check Balance',
+  list_accounts: 'List Accounts',
+  payment_status: 'Payment Status',
 };
+
+function formatAccountLine(a: AccountInfo): string {
+  return `${a.accountNumber} (${a.accountHolder}) — ${formatCurrency(a.balance, a.currency)} [${a.status}]`;
+}
+
+function formatPaymentLine(p: PaymentInfo): string {
+  const base = `Payment #${p.paymentId}: ${formatCurrency(p.amount, p.currency)} from ${p.sourceAccount} to ${p.destinationAccount} — status: ${p.status}`;
+  return p.errorMessage ? `${base}\nReason: ${p.errorMessage}` : base;
+}
 
 export default function BotChat() {
   const [text, setText] = useState('');
@@ -58,12 +98,28 @@ export default function BotChat() {
       const intent: BotCommand | undefined = json.intent;
 
       if (!intent || intent.type === 'unknown') {
-        addBotMsg("Sorry, I couldn't understand that request. Try something like \"Create payment of 5000 INR from ACC-10001 to ACC-10002\".");
+        addBotMsg("Sorry, I couldn't understand that request. Try something like \"Create payment of 5000 INR from ACC-10001 to ACC-10002\" or \"What's the balance of ACC-10001?\".");
         return;
       }
 
       if (intent.type === 'query_payments') {
         addBotMsg('Please use the Payments page to browse and filter transactions.');
+        return;
+      }
+
+      // Read-only lookups (balance/status/list) have already been resolved
+      // by the bot service — just render the result, no confirmation needed.
+      if (intent.readOnly) {
+        if (json.error) {
+          addBotMsg(`❌ ${json.error}`);
+        } else if (intent.type === 'check_balance') {
+          addBotMsg(formatAccountLine(json.result as AccountInfo));
+        } else if (intent.type === 'list_accounts') {
+          const accounts = (json.result as AccountInfo[]) || [];
+          addBotMsg(accounts.length ? accounts.map(formatAccountLine).join('\n') : 'No accounts found.');
+        } else if (intent.type === 'payment_status') {
+          addBotMsg(formatPaymentLine(json.result as PaymentInfo));
+        }
         return;
       }
 
@@ -138,7 +194,7 @@ export default function BotChat() {
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && !loading && send()}
           className="flex-1 border rounded p-2"
-          placeholder="e.g. Create payment of 50000 INR from account 123 to 456"
+          placeholder="e.g. Create payment of 50000 INR from account 123 to 456, or check balance of ACC-10001"
         />
         <button onClick={send} disabled={loading} className="bg-indigo-600 text-white px-4 rounded">
           {loading ? '...' : 'Send'}
