@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { API_BASE_URL, getEvents } from "@/lib/api";
 import type { SystemEvent } from "@/lib/types";
@@ -202,9 +203,17 @@ export default function EventsPage() {
                         <span>{displayName}</span>
                       </span>
                       {typeof event.entityId === "number" && (
-                        <span className="rounded-lg bg-slate-200/50 px-2 py-1 text-xs font-medium text-slate-700">
-                          Payment #{event.entityId}
-                        </span>
+                        <>
+                          <span className="rounded-lg bg-slate-200/50 px-2 py-1 text-xs font-medium text-slate-700">
+                            Payment #{event.entityId}
+                          </span>
+                          <Link
+                            href={`/payments/${event.entityId}`}
+                            className="rounded-lg border border-blue-300 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                          >
+                            📋 Details
+                          </Link>
+                        </>
                       )}
                       <span className="ml-auto text-xs text-slate-500">
                         {formatDateTime(event.createdAt)}
