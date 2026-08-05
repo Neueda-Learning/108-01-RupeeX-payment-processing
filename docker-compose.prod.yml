@@ -104,7 +104,7 @@ services:
     container_name: rupeex-bot-service
     environment:
       - AMQP_URL=amqp://guest:guest@rabbitmq:5672
-      - PAYMENT_API_URL=http://app:8080
+      - PAYMENT_API_URL=http://app:8080/api
       - BOT_HIGH_VALUE_THRESHOLD=100000
       - SLM_ENABLED=true
       - SLM_BASE_URL=http://ollama:11434
@@ -127,7 +127,7 @@ services:
     command: ["node", "dist/worker.js"]
     environment:
       - AMQP_URL=amqp://guest:guest@rabbitmq:5672
-      - PAYMENT_API_URL=http://app:8080
+      - PAYMENT_API_URL=http://app:8080/api
     depends_on:
       - rabbitmq
       - app

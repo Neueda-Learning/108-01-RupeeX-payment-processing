@@ -90,11 +90,23 @@ export function parseIntentRules(text: string, userId?: string): BotCommand {
     // naive extraction: find numbers and account words
     const amountMatch = t.match(/(\d+[\,\d]*(?:\.\d+)?)/);
     const amount = amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) : undefined;
-    const currencyMatch = t.match(/(in|rs|usd|eur|inr)\b/);
+    const currencyMatch = t.match(/\b(inr|usd|eur|gbp)\b/);
     const currency = currencyMatch ? currencyMatch[1].toUpperCase() : 'INR';
 
-    // extract account-like tokens (very naive)
-    const accounts = t.match(/account\s*([A-Za-z0-9\-]+)/g) || [];
+    // extract account identifiers, e.g. "from ACC-10001 to ACC-10002"
+    const fromToMatch = t.match(/from\s+([a-z0-9\-]+)\s+to\s+([a-z0-9\-]+)/i);
+    let sourceAccount: string | undefined;
+    let destinationAccount: string | undefined;
+    if (fromToMatch) {
+      sourceAccount = fromToMatch[1].toUpperCase();
+      destinationAccount = fromToMatch[2].toUpperCase();
+    } else {
+      // fallback: generic "account <id>" mentions, in order of appearance
+      const genericMatches = [...t.matchAll(/account\s*([a-z0-9\-]+)/g)].map((m) => m[1].toUpperCase());
+      sourceAccount = genericMatches[0];
+      destinationAccount = genericMatches[1];
+    }
+    const accounts = [sourceAccount, destinationAccount].filter(Boolean) as string[];
 
     const requiresConfirmation = (amount || 0) >= HIGH_THRESHOLD;
     return {
@@ -103,10 +115,12 @@ export function parseIntentRules(text: string, userId?: string): BotCommand {
         amount,
         currency,
         accounts,
+        sourceAccount,
+        destinationAccount,
         raw: text
       },
       confidence: 0.6,
-      summary: `Create payment ${amount || ''} ${currency}`,
+      summary: `Create payment ${amount || ''} ${currency} ${sourceAccount ?? ''} -> ${destinationAccount ?? ''}`,
       requiresConfirmation,
       source: 'rules',
     };
