@@ -99,6 +99,17 @@ public class PaymentOrchestrationService {
         return paymentRepository.findAll(pageable);
     }
 
+    /**
+     * Get all payments with risk scores and fraud results included.
+     * Orders by newest first.
+     */
+    public List<PaymentPlatformResponse> getAllPaymentsWithRiskScores() {
+        List<Payment> payments = paymentRepository.findAllByOrderByCreatedAtDesc();
+        return payments.stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
     public PaymentPlatformResponse getPayment(Long id) {
         Payment payment = paymentRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Payment not found: " + id));
@@ -137,7 +148,7 @@ public class PaymentOrchestrationService {
     }
 
     public List<PaymentHistory> history(Long id) {
-        return paymentHistoryRepository.findByPaymentId(id);
+        return paymentHistoryRepository.findByPaymentIdOrderByChangedAtDesc(id);
     }
 
     private void enqueueForProcessing(Long paymentId) {

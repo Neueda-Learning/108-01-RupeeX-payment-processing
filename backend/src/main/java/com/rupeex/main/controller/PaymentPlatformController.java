@@ -55,6 +55,13 @@ public class PaymentPlatformController {
         return orchestrationService.getPayments(pageable);
     }
 
+    @GetMapping("/all")
+    @Operation(summary = "Get all payments with risk scores", description = "Retrieve all payments with risk scores and fraud results included, ordered by newest first")
+    @ApiResponse(responseCode = "200", description = "Payments with risk scores retrieved successfully")
+    public List<PaymentPlatformResponse> getAllPaymentsWithRiskScores() {
+        return orchestrationService.getAllPaymentsWithRiskScores();
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Get payment by ID", description = "Retrieve detailed information for a specific payment")
     @ApiResponses(value = {

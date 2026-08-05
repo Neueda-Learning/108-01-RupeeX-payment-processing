@@ -13,8 +13,8 @@ public interface PaymentHistoryRepository
         extends JpaRepository<PaymentHistory, Long> {
 
 
-    // Get complete history of a payment
-    List<PaymentHistory> findByPaymentId(Long paymentId);
+    // Get complete history of a payment ordered by newest first
+    List<PaymentHistory> findByPaymentIdOrderByChangedAtDesc(Long paymentId);
 
 
 }
