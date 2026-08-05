@@ -160,6 +160,9 @@ services:
       - SLM_ENABLED=true
       - SLM_BASE_URL=http://ollama:11434
       - SLM_MODEL=qwen2.5:0.5b
+      # CPU-only inference is slow, especially on cold start; give it room
+      # before falling back to the rule-based parser.
+      - SLM_TIMEOUT_MS=25000
       - RAG_ENABLED=true
       - EMBED_MODEL=nomic-embed-text
       - RAG_TOP_K=3
