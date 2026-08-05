@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getPendingAdminApprovalPayments, adminApprovePayment, adminDeclinePayment } from "@/lib/api";
@@ -25,7 +25,37 @@ export default function AdminReviewPage() {
     }
   }, [currentUser, router]);
 
-  const loadPendingPayments = useCallback(() => {
+  // Fetch pending approval payments once on mount.
+  // setState calls only occur inside the promise callbacks (not synchronously
+  // in the effect body) to satisfy react-hooks/set-state-in-effect.
+  useEffect(() => {
+    let cancelled = false;
+    getPendingAdminApprovalPayments()
+      .then((rows) => {
+        if (!cancelled) {
+          setPayments(rows);
+          setError(null);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load payments");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Plain event-handler function (not an effect) — safe to call setState
+  // directly here for manual refreshes triggered by user actions.
+  const refresh = () => {
     setLoading(true);
     setError(null);
     getPendingAdminApprovalPayments()
@@ -38,12 +68,7 @@ export default function AdminReviewPage() {
       .finally(() => {
         setLoading(false);
       });
-  }, []);
-
-  // Fetch pending approval payments
-  useEffect(() => {
-    loadPendingPayments();
-  }, [loadPendingPayments]);
+  };
 
   const handleApprove = async (paymentId: number) => {
     setProcessing(paymentId);
@@ -102,7 +127,7 @@ export default function AdminReviewPage() {
             <p className="text-sm text-slate-500">{payments.length} payment(s) awaiting review</p>
           </div>
           <button
-            onClick={loadPendingPayments}
+            onClick={refresh}
             className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-200"
           >
             Refresh
