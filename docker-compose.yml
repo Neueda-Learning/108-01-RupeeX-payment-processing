@@ -93,10 +93,95 @@ services:
       # Browser-side base URL for onboarding (through nginx at same origin).
       # Should be empty so browser makes requests to same origin via /onboarding/ nginx location.
       NEXT_PUBLIC_ONBOARDING_BASE_URL: ${NEXT_PUBLIC_ONBOARDING_BASE_URL:-}
+      # Server-side base URL the frontend's /api/bot proxy route uses to
+      # reach the bot-service, resolvable on the internal compose network.
+      BOT_SERVICE_URL: ${BOT_SERVICE_URL:-http://bot-service:4001}
       PORT: 3000
     ports:
       # Bound to localhost only, see note on the `app` service above.
       - "127.0.0.1:8000:3000"
+    restart: on-failure
+
+  rabbitmq:
+    image: rabbitmq:3.11-management
+    container_name: rupeex-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    restart: on-failure
+
+  # On-premise LLM + embedding runtime for the bot service. Fully
+  # containerized — nothing to install on the host. Models persist in the
+  # `ollama_data` volume so they're only pulled once.
+  ollama:
+    image: ollama/ollama:latest
+    container_name: rupeex-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: on-failure
+
+  # One-shot init job: pulls the chat model and the embedding model into the
+  # shared `ollama_data` volume, then exits. bot-service/bot-worker don't
+  # depend on this completing — the SLM/RAG features fall back to rule-based
+  # parsing until the pull finishes.
+  ollama-pull:
+    image: ollama/ollama:latest
+    container_name: rupeex-ollama-pull
+    volumes:
+      - ollama_data:/root/.ollama
+    entrypoint: ["sh", "-c"]
+    command: >
+      "ollama serve & sleep 3 &&
+       ollama pull ${SLM_MODEL:-qwen2.5:0.5b} &&
+       ollama pull ${EMBED_MODEL:-nomic-embed-text} &&
+       echo 'model pull complete'"
+    depends_on:
+      - ollama
+
+  bot-service:
+    build:
+      context: ./bot-service
+    container_name: rupeex-bot-service
+    environment:
+      - AMQP_URL=amqp://guest:guest@rabbitmq:5672
+      - PAYMENT_API_URL=http://app:8080
+      - BOT_HIGH_VALUE_THRESHOLD=100000
+      # On-premise SLM + embeddings served by the containerized `ollama` service.
+      - SLM_ENABLED=true
+      - SLM_BASE_URL=http://ollama:11434
+      - SLM_MODEL=qwen2.5:0.5b
+      - RAG_ENABLED=true
+      - EMBED_MODEL=nomic-embed-text
+      - RAG_TOP_K=3
+    ports:
+      - "4001:4001"
+    depends_on:
+      - rabbitmq
+      - ollama
+      - app
+    restart: on-failure
+
+  bot-worker:
+    build:
+      context: ./bot-service
+    container_name: rupeex-bot-worker
+    command: ["node", "dist/worker.js"]
+    environment:
+      - AMQP_URL=amqp://guest:guest@rabbitmq:5672
+      - PAYMENT_API_URL=http://app:8080
+    depends_on:
+      - rabbitmq
+      - app
     restart: on-failure
 
   nginx:
@@ -106,6 +191,7 @@ services:
       - app
       - frontend
       - onboarding-app
+      - bot-service
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
@@ -114,3 +200,4 @@ services:
 
 volumes:
   db_data:
+  ollama_data:

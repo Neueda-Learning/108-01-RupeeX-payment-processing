@@ -36,6 +36,9 @@ SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/rupeex_db?useSSL=false&allowPublicKey
 SPRING_DATASOURCE_USERNAME=rupeex
 SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
 
+# Internal Spring Boot port inside the container (not the host-exposed port).
+# The host port is controlled separately by APP_HOST_PORT (default 8082 in
+# docker-compose.prod.yml) to avoid conflicting with Jenkins on host port 8080.
 SERVER_PORT=8080
 EOF
 

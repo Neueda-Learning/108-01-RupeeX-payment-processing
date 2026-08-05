@@ -1,0 +1,144 @@
+import { extractIntentWithSLM } from './slm';
+
+export type BotCommand = {
+  type: string;
+  payload: any;
+  confidence: number;
+  summary?: string;
+  requiresConfirmation?: boolean;
+  source?: 'slm' | 'rules';
+};
+
+const HIGH_THRESHOLD = Number(process.env.BOT_HIGH_VALUE_THRESHOLD || 100000);
+const SLM_ENABLED = process.env.SLM_ENABLED === 'true';
+const SLM_MIN_CONFIDENCE = Number(process.env.SLM_MIN_CONFIDENCE || 0.5);
+
+/**
+ * Primary entry point: tries the on-premise SLM first (if enabled), then
+ * falls back to the deterministic rule-based parser below if the SLM is
+ * unavailable, times out, returns low confidence, or returns "unknown".
+ */
+export async function parseIntent(text: string, userId?: string): Promise<BotCommand> {
+  if (SLM_ENABLED) {
+    const slmResult = await extractIntentWithSLM(text);
+    if (slmResult && slmResult.type !== 'unknown' && (slmResult.confidence ?? 0) >= SLM_MIN_CONFIDENCE) {
+      return mapSlmToCommand(slmResult, text);
+    }
+  }
+  return parseIntentRules(text, userId);
+}
+
+function mapSlmToCommand(slm: Awaited<ReturnType<typeof extractIntentWithSLM>>, text: string): BotCommand {
+  const result = slm!;
+  const amount = result.amount;
+  const requiresConfirmation = result.type === 'create_payment' && (amount || 0) >= HIGH_THRESHOLD;
+
+  switch (result.type) {
+    case 'create_payment':
+      return {
+        type: 'create_payment',
+        payload: {
+          amount,
+          currency: result.currency || 'INR',
+          accounts: [result.sourceAccount, result.destinationAccount].filter(Boolean),
+          sourceAccount: result.sourceAccount,
+          destinationAccount: result.destinationAccount,
+          raw: text,
+        },
+        confidence: result.confidence ?? 0.7,
+        summary: `Create payment ${amount ?? ''} ${result.currency ?? ''} ${result.sourceAccount ?? ''} -> ${result.destinationAccount ?? ''}`,
+        requiresConfirmation,
+        source: 'slm',
+      };
+    case 'retry_payment':
+      return {
+        type: 'retry_payment',
+        payload: { paymentId: result.paymentId, raw: text },
+        confidence: result.confidence ?? 0.7,
+        summary: `Retry payment ${result.paymentId ?? ''}`,
+        source: 'slm',
+      };
+    case 'cancel_payment':
+      return {
+        type: 'cancel_payment',
+        payload: { paymentId: result.paymentId, raw: text },
+        confidence: result.confidence ?? 0.7,
+        summary: `Cancel payment ${result.paymentId ?? ''}`,
+        source: 'slm',
+      };
+    case 'query_payments':
+      return {
+        type: 'query_payments',
+        payload: { raw: text },
+        confidence: result.confidence ?? 0.6,
+        summary: 'Query payments',
+        source: 'slm',
+      };
+    default:
+      return { type: 'unknown', payload: { raw: text }, confidence: 0.2, summary: 'Could not parse intent', source: 'slm' };
+  }
+}
+
+/**
+ * Deterministic rule-based intent parser. Used as a fallback when the SLM
+ * is disabled, unreachable, or not confident enough.
+ */
+export function parseIntentRules(text: string, userId?: string): BotCommand {
+  const t = text.trim().toLowerCase();
+
+  if (/create .*payment|make .*payment|send .*payment/.test(t)) {
+    // naive extraction: find numbers and account words
+    const amountMatch = t.match(/(\d+[\,\d]*(?:\.\d+)?)/);
+    const amount = amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) : undefined;
+    const currencyMatch = t.match(/(in|rs|usd|eur|inr)\b/);
+    const currency = currencyMatch ? currencyMatch[1].toUpperCase() : 'INR';
+
+    // extract account-like tokens (very naive)
+    const accounts = t.match(/account\s*([A-Za-z0-9\-]+)/g) || [];
+
+    const requiresConfirmation = (amount || 0) >= HIGH_THRESHOLD;
+    return {
+      type: 'create_payment',
+      payload: {
+        amount,
+        currency,
+        accounts,
+        raw: text
+      },
+      confidence: 0.6,
+      summary: `Create payment ${amount || ''} ${currency}`,
+      requiresConfirmation,
+      source: 'rules',
+    };
+  }
+
+  if (/retry .*payment|retry payment/.test(t)) {
+    const idMatch = t.match(/#?(\d+)/);
+    return {
+      type: 'retry_payment',
+      payload: { paymentId: idMatch ? idMatch[1] : undefined, raw: text },
+      confidence: 0.9,
+      summary: `Retry payment ${idMatch ? idMatch[1] : ''}`,
+      source: 'rules',
+    };
+  }
+
+  if (/cancel .*payment|cancel payment/.test(t)) {
+    const idMatch = t.match(/#?(\d+)/);
+    return {
+      type: 'cancel_payment',
+      payload: { paymentId: idMatch ? idMatch[1] : undefined, raw: text },
+      confidence: 0.9,
+      summary: `Cancel payment ${idMatch ? idMatch[1] : ''}`,
+      source: 'rules',
+    };
+  }
+
+  return {
+    type: 'unknown',
+    payload: { raw: text },
+    confidence: 0.2,
+    summary: 'Could not parse intent',
+    source: 'rules',
+  };
+}
