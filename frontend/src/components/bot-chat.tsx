@@ -15,9 +15,11 @@ import {
   Ban,
   ArrowRightLeft,
   Sparkles,
+  KeyRound,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
+import { getAccounts, sendOtp, verifyOtp } from "@/lib/api";
 
 type MsgKind = "text" | "account" | "accounts" | "payment" | "error";
 
@@ -86,6 +88,13 @@ const TYPE_LABELS: Record<string, string> = {
   payment_status: "Payment Status",
 };
 
+function maskEmail(email: string): string {
+  const [local, domain] = email.split("@");
+  if (!domain) return email;
+  const visible = local.slice(0, Math.min(2, local.length));
+  return `${visible}***@${domain}`;
+}
+
 const TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   create_payment: ArrowRightLeft,
   retry_payment: RotateCcw,
@@ -112,6 +121,14 @@ export default function BotChat() {
   const [pendingCommand, setPendingCommand] = useState<BotCommand | null>(null);
   const [confirming, setConfirming] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // OTP gate state (used only for create_payment commands)
+  const [otpStep, setOtpStep] = useState(false);
+  const [otpValue, setOtpValue] = useState("");
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [maskedEmail, setMaskedEmail] = useState("");
+  const [resolvedEmail, setResolvedEmail] = useState("");
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -178,7 +195,15 @@ export default function BotChat() {
     }
   }
 
-  async function confirmPending() {
+  function resetOtpState() {
+    setOtpStep(false);
+    setOtpValue("");
+    setOtpError(null);
+    setMaskedEmail("");
+    setResolvedEmail("");
+  }
+
+  async function queueCommand() {
     if (!pendingCommand) return;
     setConfirming(true);
     try {
@@ -186,7 +211,6 @@ export default function BotChat() {
       const body = pendingCommand.requiresConfirmation
         ? { command: pendingCommand, approver: "ui-user" }
         : { command: pendingCommand };
-
       const resp = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -201,12 +225,71 @@ export default function BotChat() {
     } catch {
       addBotError("Error submitting command");
     } finally {
+      resetOtpState();
       setPendingCommand(null);
       setConfirming(false);
     }
   }
 
+  async function initiateOtp() {
+    if (!pendingCommand?.payload.sourceAccount) {
+      addBotError("Source account is missing. Cannot send OTP.");
+      return;
+    }
+    setConfirming(true);
+    try {
+      const accounts = await getAccounts();
+      const src = accounts.find((a) => a.accountNumber === pendingCommand.payload.sourceAccount);
+      if (!src?.email) {
+        addBotError("No email address is registered on this account. Please update the account before proceeding.");
+        setPendingCommand(null);
+        return;
+      }
+      await sendOtp(src.email, pendingCommand.payload.sourceAccount);
+      setResolvedEmail(src.email);
+      setMaskedEmail(maskEmail(src.email));
+      setOtpStep(true);
+      setOtpValue("");
+      setOtpError(null);
+    } catch {
+      addBotError("Failed to send OTP. Please try again.");
+    } finally {
+      setConfirming(false);
+    }
+  }
+
+  async function handleBotOtpVerify() {
+    if (otpValue.length !== 4) {
+      setOtpError("Please enter the 4-digit OTP.");
+      return;
+    }
+    setOtpError(null);
+    setIsVerifying(true);
+    try {
+      const result = await verifyOtp(resolvedEmail, otpValue);
+      if (!result.valid) {
+        setOtpError(result.message ?? "Invalid or expired OTP. Try again.");
+        return;
+      }
+      await queueCommand();
+    } catch {
+      setOtpError("Verification failed. Please try again.");
+    } finally {
+      setIsVerifying(false);
+    }
+  }
+
+  async function confirmPending() {
+    if (!pendingCommand) return;
+    if (pendingCommand.type === "create_payment") {
+      await initiateOtp();
+    } else {
+      await queueCommand();
+    }
+  }
+
   function cancelPending() {
+    resetOtpState();
     setPendingCommand(null);
     addBotText("Cancelled — nothing was submitted.");
   }
@@ -258,11 +341,23 @@ export default function BotChat() {
           </div>
         )}
 
-        {pendingCommand && (
+        {pendingCommand && !otpStep && (
           <TransactionPreview
             command={pendingCommand}
             loading={confirming}
             onConfirm={confirmPending}
+            onCancel={cancelPending}
+          />
+        )}
+
+        {pendingCommand && otpStep && (
+          <BotOtpGate
+            maskedEmail={maskedEmail}
+            otpValue={otpValue}
+            otpError={otpError}
+            isVerifying={isVerifying}
+            onOtpChange={(val) => { setOtpValue(val); setOtpError(null); }}
+            onVerify={handleBotOtpVerify}
             onCancel={cancelPending}
           />
         )}
@@ -462,6 +557,78 @@ function TransactionPreview({
         <button
           onClick={onCancel}
           disabled={loading}
+          className="flex items-center justify-center gap-1.5 rounded-lg bg-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-300 disabled:opacity-60"
+        >
+          <XCircle className="h-4 w-4" />
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function BotOtpGate({
+  maskedEmail,
+  otpValue,
+  otpError,
+  isVerifying,
+  onOtpChange,
+  onVerify,
+  onCancel,
+}: {
+  maskedEmail: string;
+  otpValue: string;
+  otpError: string | null;
+  isVerifying: boolean;
+  onOtpChange: (val: string) => void;
+  onVerify: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="ml-9 w-[22rem] max-w-full rounded-2xl border border-orange-200 bg-orange-50/70 p-4 shadow-sm">
+      <div className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-orange-900">
+        <KeyRound className="h-4 w-4" />
+        Verify your identity
+      </div>
+      <p className="text-sm text-slate-600">
+        A 4-digit OTP has been sent to{" "}
+        <span className="font-medium text-slate-800">{maskedEmail}</span>.
+        Enter it below to authorise the payment.
+      </p>
+
+      <div className="mt-4">
+        <label className="text-sm">
+          <span className="mb-1.5 block font-medium text-slate-700">One-time password</span>
+          <input
+            type="text"
+            inputMode="numeric"
+            maxLength={4}
+            pattern="\d{4}"
+            placeholder="_ _ _ _"
+            value={otpValue}
+            onChange={(e) => onOtpChange(e.target.value.replace(/\D/g, "").slice(0, 4))}
+            className="w-36 rounded-lg border border-slate-200 bg-white px-3 py-2 text-center text-2xl tracking-widest text-slate-900 outline-none ring-orange-500/30 focus:ring"
+            autoFocus
+          />
+        </label>
+      </div>
+
+      {otpError && (
+        <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{otpError}</p>
+      )}
+
+      <div className="mt-4 flex gap-2">
+        <button
+          onClick={onVerify}
+          disabled={isVerifying || otpValue.length !== 4}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isVerifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+          {isVerifying ? "Verifying…" : "Verify & Pay"}
+        </button>
+        <button
+          onClick={onCancel}
+          disabled={isVerifying}
           className="flex items-center justify-center gap-1.5 rounded-lg bg-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-300 disabled:opacity-60"
         >
           <XCircle className="h-4 w-4" />
