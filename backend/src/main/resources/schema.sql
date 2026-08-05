@@ -176,6 +176,15 @@ ALTER TABLE payment_verifications MODIFY COLUMN status VARCHAR(50) NOT NULL;
 -- holding the sentinel are touched) and repair the data at the source, in
 -- addition to the zeroDateTimeBehavior=CONVERT_TO_NULL JDBC URL option which
 -- only masks the symptom on read.
+--
+-- MySQL 8's default sql_mode includes STRICT_TRANS_TABLES, which folds in the
+-- legacy NO_ZERO_DATE behavior: even using '0000-00-00 00:00:00' as a literal
+-- for comparison (not just for insert) is rejected with "Incorrect datetime
+-- value". Temporarily relax sql_mode for the remainder of this session so the
+-- comparisons below are allowed, then restore the original mode.
+SET @rupeex_original_sql_mode = @@SESSION.sql_mode;
+SET SESSION sql_mode = '';
+
 UPDATE accounts SET created_at = NOW() WHERE created_at = '0000-00-00 00:00:00';
 UPDATE accounts SET updated_at = NOW() WHERE updated_at = '0000-00-00 00:00:00';
 UPDATE payments SET created_at = NOW() WHERE created_at = '0000-00-00 00:00:00';
@@ -195,6 +204,8 @@ UPDATE payment_metrics SET recorded_at = NOW() WHERE recorded_at = '0000-00-00 0
 UPDATE system_events SET created_at = NOW() WHERE created_at = '0000-00-00 00:00:00';
 UPDATE payment_verifications SET created_at = NOW() WHERE created_at = '0000-00-00 00:00:00';
 UPDATE payment_verifications SET updated_at = NOW() WHERE updated_at = '0000-00-00 00:00:00';
+
+SET SESSION sql_mode = @rupeex_original_sql_mode;
 
 INSERT IGNORE INTO fraud_rules (name, description, rule_type, threshold, score_contribution, enabled)
 VALUES
