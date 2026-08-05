@@ -1,7 +1,7 @@
 package com.rupeex.main.notification.service;
 
 import com.rupeex.main.entity.Payment;
-import com.rupeex.main.notification.EmailNotificationService;
+import com.rupeex.main.notification.NotificationService;
 import com.rupeex.main.notification.model.NotificationRequest;
 import com.rupeex.main.repository.PaymentRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,7 +37,7 @@ public class PaymentNotificationDispatcher {
     private final PaymentRepository paymentRepository;
     private final PaymentEmailResolverService emailResolver;
     private final PaymentEmailTemplateBuilder templateBuilder;
-    private final EmailNotificationService emailService;
+    private final NotificationService emailService;
 
     @Value("${notification.email.enabled:true}")
     private boolean emailNotificationEnabled;
@@ -58,7 +58,7 @@ public class PaymentNotificationDispatcher {
             PaymentRepository paymentRepository,
             PaymentEmailResolverService emailResolver,
             PaymentEmailTemplateBuilder templateBuilder,
-            EmailNotificationService emailService) {
+            NotificationService emailService) {
         this.paymentRepository = paymentRepository;
         this.emailResolver = emailResolver;
         this.templateBuilder = templateBuilder;
