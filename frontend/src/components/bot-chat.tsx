@@ -1,16 +1,33 @@
 "use client";
 
 import React, { useState } from "react";
+import { formatCurrency } from "@/lib/format";
 
 type Msg = { role: 'user' | 'bot'; text: string };
 
+type PaymentPayload = {
+  amount?: number;
+  currency?: string;
+  sourceAccount?: string;
+  destinationAccount?: string;
+  paymentId?: string;
+  raw?: string;
+};
+
 type BotCommand = {
-  type: string;
-  payload: Record<string, unknown>;
+  type: 'create_payment' | 'retry_payment' | 'cancel_payment' | 'query_payments' | 'unknown';
+  payload: PaymentPayload;
   confidence: number;
   summary?: string;
   requiresConfirmation?: boolean;
   source?: 'slm' | 'rules';
+};
+
+const TYPE_LABELS: Record<string, string> = {
+  create_payment: 'Create Payment',
+  retry_payment: 'Retry Payment',
+  cancel_payment: 'Cancel Payment',
+  query_payments: 'Query Payments',
 };
 
 export default function BotChat() {
@@ -18,6 +35,7 @@ export default function BotChat() {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [loading, setLoading] = useState(false);
   const [pendingCommand, setPendingCommand] = useState<BotCommand | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   function addBotMsg(t: string) {
     setMsgs((m) => [...m, { role: 'bot', text: t }]);
@@ -37,22 +55,21 @@ export default function BotChat() {
         body: JSON.stringify({ text }),
       });
       const json = await resp.json();
-      const intent = json.intent;
+      const intent: BotCommand | undefined = json.intent;
 
       if (!intent || intent.type === 'unknown') {
-        addBotMsg("Sorry, I couldn't understand that request.");
+        addBotMsg("Sorry, I couldn't understand that request. Try something like \"Create payment of 5000 INR from ACC-10001 to ACC-10002\".");
         return;
       }
 
-      addBotMsg(intent.summary || JSON.stringify(intent, null, 2));
-
-      if (intent.requiresConfirmation) {
-        setPendingCommand(intent);
-        addBotMsg('This is a high-value payment and requires confirmation. Click "Confirm" below to proceed.');
+      if (intent.type === 'query_payments') {
+        addBotMsg('Please use the Payments page to browse and filter transactions.');
         return;
       }
 
-      await executeCommand(intent);
+      // Every state-changing action (create/retry/cancel) always requires
+      // an explicit confirmation click before it's queued for execution.
+      setPendingCommand(intent);
     } catch {
       addBotMsg('Error contacting bot service');
     } finally {
@@ -60,45 +77,37 @@ export default function BotChat() {
     }
   }
 
-  async function executeCommand(command: BotCommand) {
+  async function confirmPending() {
+    if (!pendingCommand) return;
+    setConfirming(true);
     try {
-      const resp = await fetch('/api/bot/execute', {
+      const endpoint = pendingCommand.requiresConfirmation ? '/api/bot/confirm' : '/api/bot/execute';
+      const body = pendingCommand.requiresConfirmation
+        ? { command: pendingCommand, approver: 'ui-user' }
+        : { command: pendingCommand };
+
+      const resp = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command }),
+        body: JSON.stringify(body),
       });
       const json = await resp.json();
       if (resp.ok) {
-        addBotMsg(`Queued: ${command.type} — it will be processed shortly.`);
+        addBotMsg(`✅ Queued: ${TYPE_LABELS[pendingCommand.type] ?? pendingCommand.type} — it will be processed shortly.`);
       } else {
-        addBotMsg(`Failed to queue command: ${json.error || 'unknown error'}`);
+        addBotMsg(`❌ Failed to queue: ${json.error || json.message || 'unknown error'}`);
       }
     } catch {
-      addBotMsg('Error queuing command');
+      addBotMsg('❌ Error submitting command');
+    } finally {
+      setPendingCommand(null);
+      setConfirming(false);
     }
   }
 
-  async function confirmPending() {
-    if (!pendingCommand) return;
-    setLoading(true);
-    try {
-      const resp = await fetch('/api/bot/confirm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command: pendingCommand, approver: 'ui-user' }),
-      });
-      const json = await resp.json();
-      if (resp.ok) {
-        addBotMsg(`Confirmed and queued: ${pendingCommand.type}.`);
-      } else {
-        addBotMsg(`Failed to confirm: ${json.error || 'unknown error'}`);
-      }
-    } catch {
-      addBotMsg('Error confirming command');
-    } finally {
-      setPendingCommand(null);
-      setLoading(false);
-    }
+  function cancelPending() {
+    setPendingCommand(null);
+    addBotMsg('Cancelled — nothing was submitted.');
   }
 
   return (
@@ -115,25 +124,95 @@ export default function BotChat() {
       </div>
 
       {pendingCommand && (
-        <div className="mb-3 flex gap-2">
-          <button onClick={confirmPending} disabled={loading} className="bg-emerald-600 text-white px-4 py-2 rounded">
-            Confirm
-          </button>
-          <button onClick={() => setPendingCommand(null)} disabled={loading} className="bg-slate-200 px-4 py-2 rounded">
-            Cancel
-          </button>
-        </div>
+        <TransactionPreview
+          command={pendingCommand}
+          loading={confirming}
+          onConfirm={confirmPending}
+          onCancel={cancelPending}
+        />
       )}
 
       <div className="flex gap-2">
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && !loading && send()}
           className="flex-1 border rounded p-2"
           placeholder="e.g. Create payment of 50000 INR from account 123 to 456"
         />
         <button onClick={send} disabled={loading} className="bg-indigo-600 text-white px-4 rounded">
           {loading ? '...' : 'Send'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value?: React.ReactNode }) {
+  if (value === undefined || value === null || value === '') return null;
+  return (
+    <div className="flex justify-between py-1 text-sm">
+      <span className="text-slate-500">{label}</span>
+      <span className="font-medium text-slate-900">{value}</span>
+    </div>
+  );
+}
+
+function TransactionPreview({
+  command,
+  loading,
+  onConfirm,
+  onCancel,
+}: {
+  command: BotCommand;
+  loading: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const { payload, requiresConfirmation, confidence, source } = command;
+  const amountDisplay =
+    payload.amount !== undefined ? formatCurrency(payload.amount, payload.currency || 'INR') : undefined;
+
+  return (
+    <div className="mb-3 rounded-lg border border-indigo-200 bg-indigo-50/60 p-4">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-sm font-semibold text-indigo-900">
+          Review {TYPE_LABELS[command.type] ?? command.type}
+        </span>
+        {requiresConfirmation && (
+          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+            High value — approval required
+          </span>
+        )}
+      </div>
+
+      <div className="divide-y divide-indigo-100 rounded-md bg-white/70 px-3">
+        <Row label="Amount" value={amountDisplay} />
+        <Row label="From account" value={payload.sourceAccount} />
+        <Row label="To account" value={payload.destinationAccount} />
+        <Row label="Payment ID" value={payload.paymentId} />
+        <Row label="Parsed via" value={source === 'slm' ? 'AI model' : 'Rule-based parser'} />
+        <Row label="Confidence" value={typeof confidence === 'number' ? `${Math.round(confidence * 100)}%` : undefined} />
+      </div>
+
+      <p className="mt-2 text-xs text-slate-500">
+        Nothing has been submitted yet. Review the details above before confirming.
+      </p>
+
+      <div className="mt-3 flex gap-2">
+        <button
+          onClick={onConfirm}
+          disabled={loading}
+          className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+        >
+          {loading ? 'Submitting…' : 'Confirm & Submit'}
+        </button>
+        <button
+          onClick={onCancel}
+          disabled={loading}
+          className="rounded bg-slate-200 px-4 py-2 text-sm font-medium text-slate-700 disabled:opacity-60"
+        >
+          Cancel
         </button>
       </div>
     </div>
