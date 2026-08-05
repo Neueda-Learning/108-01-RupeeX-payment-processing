@@ -40,6 +40,9 @@ public class Account {
     @Column(nullable = false, name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(nullable = true, length = 255, name = "email")
+    private String email;
+
     public Account() {}
 
     @PrePersist
@@ -83,5 +86,7 @@ public class Account {
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
-}
 
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+}

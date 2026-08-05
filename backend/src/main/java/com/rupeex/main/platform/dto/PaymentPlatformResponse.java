@@ -17,6 +17,7 @@ public class PaymentPlatformResponse {
     private PaymentStatus status;
     private LocalDateTime createdAt;
     private String errorMessage;
+    private String payerEmail;
     private RiskScore riskScore;
     private List<FraudResult> fraudResults;
 
@@ -90,6 +91,14 @@ public class PaymentPlatformResponse {
 
     public void setErrorMessage(String errorMessage) {
         this.errorMessage = errorMessage;
+    }
+
+    public String getPayerEmail() {
+        return payerEmail;
+    }
+
+    public void setPayerEmail(String payerEmail) {
+        this.payerEmail = payerEmail;
     }
 
     public RiskScore getRiskScore() {

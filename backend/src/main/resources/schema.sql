@@ -10,8 +10,10 @@ CREATE TABLE IF NOT EXISTS accounts (
     country_code VARCHAR(2),
     balance DECIMAL(19,2) NOT NULL DEFAULT 0.00,
     status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE',
+    email VARCHAR(255),
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_email (email)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS payments (
@@ -24,11 +26,17 @@ CREATE TABLE IF NOT EXISTS payments (
     status VARCHAR(50) NOT NULL,
     error_code VARCHAR(100),
     error_message VARCHAR(1000),
+    payer_email VARCHAR(255),
     idempotency_key VARCHAR(128) NOT NULL UNIQUE,
+    source_currency VARCHAR(3),
+    destination_currency VARCHAR(3),
+    converted_amount DECIMAL(19,2),
+    exchange_rate DECIMAL(19,6),
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_payments_status (status),
-    INDEX idx_payments_created_at (created_at)
+    INDEX idx_payments_created_at (created_at),
+    INDEX idx_payer_email (payer_email)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS payment_history (
