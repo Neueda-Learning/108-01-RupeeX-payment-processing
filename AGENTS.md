@@ -46,7 +46,7 @@ Checks and Tooling
 - Formatting: Use the repository's formatter configured in `SKILL.md` (Google Java Format / Spotless via Maven).
 - Static analysis: Run SpotBugs/PMD/Checkstyle in CI.
 - Security scanning: Run dependency-check or Snyk in CI.
-- DB changes: Use `src/main/resources/schema.sql` plus migration tooling (Flyway/Liquibase recommended).
+- DB changes: Use `backend/src/main/resources/schema.sql` plus migration tooling (Flyway/Liquibase recommended).
 
 When to Escalate to Humans
 --------------------------

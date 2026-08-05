@@ -82,7 +82,7 @@ src/main/java/com/rupeex/main
 - Processing: processing_queue, dead_letter_queue.
 - Ops/Observability: notifications, payment_metrics, system_events.
 
-Reference DDL is in `src/main/resources/schema.sql`.
+Reference DDL is in `backend/src/main/resources/schema.sql`.
 
 ## 4. Entity Relationships
 

@@ -16,7 +16,7 @@ Repository Overview
 -------------------
 - Build: Maven (`pom.xml`).
 - App: Spring Boot (see `RupeeXApplication.java`).
-- DB schema: `src/main/resources/schema.sql`.
+- DB schema: `backend/src/main/resources/schema.sql`.
 - CI: `Jenkinsfile` and related pipeline files.
 
 Formatting and Style
