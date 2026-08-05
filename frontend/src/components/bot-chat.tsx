@@ -4,11 +4,20 @@ import React, { useState } from "react";
 
 type Msg = { role: 'user' | 'bot'; text: string };
 
+type BotCommand = {
+  type: string;
+  payload: Record<string, unknown>;
+  confidence: number;
+  summary?: string;
+  requiresConfirmation?: boolean;
+  source?: 'slm' | 'rules';
+};
+
 export default function BotChat() {
   const [text, setText] = useState('');
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [loading, setLoading] = useState(false);
-  const [pendingCommand, setPendingCommand] = useState<any>(null);
+  const [pendingCommand, setPendingCommand] = useState<BotCommand | null>(null);
 
   function addBotMsg(t: string) {
     setMsgs((m) => [...m, { role: 'bot', text: t }]);
@@ -44,14 +53,14 @@ export default function BotChat() {
       }
 
       await executeCommand(intent);
-    } catch (err) {
+    } catch {
       addBotMsg('Error contacting bot service');
     } finally {
       setLoading(false);
     }
   }
 
-  async function executeCommand(command: any) {
+  async function executeCommand(command: BotCommand) {
     try {
       const resp = await fetch('/api/bot/execute', {
         method: 'POST',
@@ -64,7 +73,7 @@ export default function BotChat() {
       } else {
         addBotMsg(`Failed to queue command: ${json.error || 'unknown error'}`);
       }
-    } catch (err) {
+    } catch {
       addBotMsg('Error queuing command');
     }
   }
@@ -84,7 +93,7 @@ export default function BotChat() {
       } else {
         addBotMsg(`Failed to confirm: ${json.error || 'unknown error'}`);
       }
-    } catch (err) {
+    } catch {
       addBotMsg('Error confirming command');
     } finally {
       setPendingCommand(null);
