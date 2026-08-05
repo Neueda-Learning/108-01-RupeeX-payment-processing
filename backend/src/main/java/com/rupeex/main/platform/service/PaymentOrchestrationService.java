@@ -73,6 +73,7 @@ public class PaymentOrchestrationService {
         payment.setIdempotencyKey(request.getIdempotencyKey());
         payment.setPaymentReference("EP-" + UUID.randomUUID());
         payment.setStatus(PaymentStatus.CREATED);
+        payment.setPayerEmail(request.getPayerEmail());
         payment = paymentRepository.save(payment);
         auditEngineService.record(payment.getId(), "PaymentEngine", "Payment Created", null, PaymentStatus.CREATED, 0L, null);
 
@@ -177,6 +178,7 @@ public class PaymentOrchestrationService {
         response.setStatus(payment.getStatus());
         response.setCreatedAt(payment.getCreatedAt());
         response.setErrorMessage(payment.getErrorMessage());
+        response.setPayerEmail(payment.getPayerEmail());
         response.setRiskScore(riskScoreRepository.findByPaymentId(payment.getId()).orElse(null));
         response.setFraudResults(fraudResultRepository.findByPaymentId(payment.getId()));
         return response;
