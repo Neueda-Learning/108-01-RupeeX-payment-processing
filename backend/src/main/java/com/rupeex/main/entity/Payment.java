@@ -85,6 +85,15 @@ public class Payment {
 
 
 
+    @Column(
+            name = "payer_email",
+            nullable = true,
+            length = 255
+    )
+    private String payerEmail;
+
+
+
     private String errorCode;
 
 
@@ -262,6 +271,15 @@ public class Payment {
 
 
 
+    public String getPayerEmail(){
+
+        return this.payerEmail;
+
+    }
+
+
+
+
     /*
        Setter methods
        Used by Service layer
@@ -282,7 +300,6 @@ public class Payment {
         this.status = status;
 
     }
-
 
 
 
@@ -312,7 +329,6 @@ public class Payment {
 
 
 
-
     public void setPaymentReference(String paymentReference){
 
         this.paymentReference = paymentReference;
@@ -327,6 +343,13 @@ public class Payment {
 
     }
 
+
+
+    public void setPayerEmail(String payerEmail){
+
+        this.payerEmail = payerEmail;
+
+    }
 
 
 
@@ -400,162 +423,4 @@ public class Payment {
     }
 
 
-
 }
-
-
-
-//package com.rupeex.main.entity;
-//
-//
-//import com.rupeex.main.enums.PaymentStatus;
-//
-//import jakarta.persistence.*;
-//import lombok.*;
-//
-//import java.math.BigDecimal;
-//import java.time.LocalDateTime;
-//
-//
-//@Entity
-//@Table(
-//        name = "payments",
-//        indexes = {
-//                @Index(
-//                        name = "idx_payment_reference",
-//                        columnList = "payment_reference"
-//                ),
-//                @Index(
-//                        name = "idx_idempotency_key",
-//                        columnList = "idempotency_key"
-//                )
-//        }
-//)
-//@Getter
-//@Setter
-//@NoArgsConstructor
-//@AllArgsConstructor
-//@Builder
-//public class Payment {
-//
-//
-//    @Id
-//    @GeneratedValue(strategy = GenerationType.IDENTITY)
-//    private Long id;
-//
-//
-//    @Column(
-//            name = "payment_reference",
-//            unique = true,
-//            nullable = false
-//    )
-//    private String paymentReference;
-//
-//
-//
-//    @Column(
-//            nullable = false,
-//            precision = 19,
-//            scale = 2
-//    )
-//    private BigDecimal amount;
-//
-//
-//
-//    @Column(nullable = false)
-//    private String currency;
-//
-//
-//
-//    @Column(nullable = false)
-//    private String sourceAccount;
-//
-//
-//
-//    @Column(nullable = false)
-//    private String destinationAccount;
-//
-//
-//
-//    @Enumerated(EnumType.STRING)
-//    @Column(nullable = false)
-//    private PaymentStatus status;
-//
-//
-//
-//    @Column(
-//            name="idempotency_key",
-//            unique=true
-//    )
-//    private String idempotencyKey;
-//
-//
-//
-//    private String errorCode;
-//
-//
-//    private String errorMessage;
-//
-//
-//
-//    @Column(nullable=false,
-//            updatable=false)
-//    private LocalDateTime createdAt;
-//
-//
-//
-//    private LocalDateTime updatedAt;
-//
-//
-//
-//    @PrePersist
-//    public void prePersist(){
-//
-//        LocalDateTime now = LocalDateTime.now();
-//
-//        createdAt = now;
-//        updatedAt = now;
-//
-//
-//        if(status == null){
-//            status = PaymentStatus.INITIATED;
-//        }
-//
-//    }
-//
-//
-//
-//    @PreUpdate
-//    public void preUpdate(){
-//
-//        updatedAt = LocalDateTime.now();
-//
-//    }
-//
-//    public Long getId() {
-//        return id;
-//    }
-//
-//    public Long getAmount() {
-//        return amount.longValue();
-//    }
-//
-//    public Object getCurrency() {
-//        return currency;
-//    }
-//
-//    public Object getStatus() {
-//        return status;
-//    }
-//
-//    public void setAmount(Object amount) {
-//
-//    }
-//
-//    public void setStatus(PaymentStatus paymentStatus) {
-//
-//    }
-//}
-
-
-

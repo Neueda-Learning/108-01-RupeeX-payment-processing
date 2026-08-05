@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { getAccounts, getPayments, createPayment } from "@/lib/api";
+import { getAccounts, getPayments, createPayment, sendOtp, verifyOtp } from "@/lib/api";
 import type { Account, Payment, CreatePaymentInput } from "@/lib/types";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
@@ -50,6 +50,13 @@ export default function AccountsPage() {
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [sendSuccess, setSendSuccess] = useState<string | null>(null);
+
+  // OTP flow for the accounts page send form
+  const [sendStep, setSendStep] = useState<"form" | "otp">("form");
+  const [sendOtpValue, setSendOtpValue] = useState("");
+  const [sendOtpError, setSendOtpError] = useState<string | null>(null);
+  const [sendVerifying, setSendVerifying] = useState(false);
+  const [sendMaskedEmail, setSendMaskedEmail] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -114,13 +121,50 @@ export default function AccountsPage() {
 
   const rows = tab === "sent" ? sent : received;
 
+  /** Masks an email for display: "payer@example.com" → "pa***@example.com" */
+  const maskEmail = (email: string): string => {
+    const [local, domain] = email.split("@");
+    if (!domain) return email;
+    return `${local.slice(0, Math.min(2, local.length))}***@${domain}`;
+  };
+
+  // Step 1: validate form then send OTP
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selected) return;
+    if (!selected.email) {
+      setSendError("No email address is registered on this account. Update the account before sending a payment.");
+      return;
+    }
     setSending(true);
     setSendError(null);
     setSendSuccess(null);
     try {
+      await sendOtp(selected.email, selected.accountNumber);
+      setSendMaskedEmail(maskEmail(selected.email));
+      setSendStep("otp");
+    } catch (err) {
+      setSendError(err instanceof Error ? err.message : "Failed to send OTP");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Step 2: verify OTP then create payment
+  const handleSendOtpVerify = async () => {
+    if (!selected) return;
+    if (sendOtpValue.length !== 4) {
+      setSendOtpError("Please enter the 4-digit OTP.");
+      return;
+    }
+    setSendOtpError(null);
+    setSendVerifying(true);
+    try {
+      const result = await verifyOtp(selected.email!, sendOtpValue);
+      if (!result.valid) {
+        setSendOtpError(result.message ?? "Invalid or expired OTP. Try again.");
+        return;
+      }
       const created = await createPayment({
         amount: sendForm.amount ?? 0,
         currency: sendForm.currency ?? "INR",
@@ -128,19 +172,19 @@ export default function AccountsPage() {
         destinationAccount: sendForm.destinationAccount ?? "",
         originCountry: sendForm.originCountry ?? "IN",
         destinationCountry: sendForm.destinationCountry ?? "IN",
+        payerEmail: selected.email,
       });
       setPayments((prev) => [created, ...prev]);
-      setSendSuccess(
-        `Payment ${created.reference ?? `#${created.id}`} submitted successfully.`,
-      );
+      setSendSuccess(`Payment ${created.reference ?? `#${created.id}`} submitted successfully.`);
       setSendForm((f) => ({ ...f, amount: 0, destinationAccount: "" }));
+      setSendStep("form");
+      setSendOtpValue("");
+      setSendMaskedEmail("");
       setShowSend(false);
     } catch (err) {
-      setSendError(
-        err instanceof Error ? err.message : "Unable to submit payment",
-      );
+      setSendOtpError(err instanceof Error ? err.message : "Unable to submit payment");
     } finally {
-      setSending(false);
+      setSendVerifying(false);
     }
   };
 
@@ -267,6 +311,9 @@ export default function AccountsPage() {
                   setShowSend((v) => !v);
                   setSendError(null);
                   setSendSuccess(null);
+                  setSendStep("form");
+                  setSendOtpValue("");
+                  setSendOtpError(null);
                 }}
                 className="self-start rounded-xl bg-orange-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-orange-700"
               >
@@ -324,10 +371,58 @@ export default function AccountsPage() {
                   {sendError}
                 </p>
               )}
-              <form
-                onSubmit={handleSend}
-                className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2"
-              >
+
+              {/* OTP verification step */}
+              {sendStep === "otp" ? (
+                <div className="mt-4">
+                  <p className="text-sm text-slate-600">
+                    A 4-digit OTP has been sent to{" "}
+                    <span className="font-medium text-slate-800">{sendMaskedEmail}</span>.
+                    Enter it below to authorise the payment.
+                  </p>
+                  <div className="mt-3">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={4}
+                      pattern="\d{4}"
+                      placeholder="_ _ _ _"
+                      value={sendOtpValue}
+                      onChange={(e) => {
+                        setSendOtpValue(e.target.value.replace(/\D/g, "").slice(0, 4));
+                        setSendOtpError(null);
+                      }}
+                      className="w-36 rounded-lg border border-slate-200 bg-white px-3 py-2 text-center text-2xl tracking-widest text-slate-900 outline-none ring-orange-500/30 focus:ring"
+                    />
+                  </div>
+                  {sendOtpError && (
+                    <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                      {sendOtpError}
+                    </p>
+                  )}
+                  <div className="mt-4 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={handleSendOtpVerify}
+                      disabled={sendVerifying || sendOtpValue.length !== 4}
+                      className="rounded-xl bg-orange-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-orange-700 disabled:opacity-60"
+                    >
+                      {sendVerifying ? "Verifying…" : "Verify & Pay"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setSendStep("form"); setSendOtpValue(""); setSendOtpError(null); setSendError(null); }}
+                      className="text-sm text-slate-500 hover:text-slate-700"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <form
+                  onSubmit={handleSend}
+                  className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2"
+                >
                 <label className="text-sm">
                   <span className="mb-1 block font-medium text-slate-700">
                     Destination account
@@ -426,10 +521,11 @@ export default function AccountsPage() {
                     disabled={sending}
                     className="rounded-xl bg-orange-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-orange-700 disabled:opacity-60"
                   >
-                    {sending ? "Submitting…" : "Submit payment"}
+                    {sending ? "Sending OTP…" : "Continue — Send OTP"}
                   </button>
                 </div>
               </form>
+              )}
             </section>
           )}
 

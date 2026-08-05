@@ -1,63 +1,78 @@
 -- RupeeX seed data (clean & idempotent)
--- Deletes previous seed data and rebuilds from scratch to avoid conflicts
+-- Fully resets all tables to seed state - removes ALL user-created data
 
 START TRANSACTION;
 
--- Clean up previous seed data (identify by payment_reference prefix)
-DELETE FROM risk_scores WHERE payment_id IN (SELECT id FROM payments WHERE payment_reference LIKE 'SEED-PAY-%' OR payment_reference LIKE 'EP-%');
-DELETE FROM fraud_results WHERE payment_id IN (SELECT id FROM payments WHERE payment_reference LIKE 'SEED-PAY-%' OR payment_reference LIKE 'EP-%');
-DELETE FROM dead_letter_queue WHERE payment_id IN (SELECT id FROM payments WHERE payment_reference LIKE 'SEED-PAY-%' OR payment_reference LIKE 'EP-%');
-DELETE FROM processing_queue WHERE payment_id IN (SELECT id FROM payments WHERE payment_reference LIKE 'SEED-PAY-%' OR payment_reference LIKE 'EP-%');
-DELETE FROM payment_history WHERE payment_id IN (SELECT id FROM payments WHERE payment_reference LIKE 'SEED-PAY-%' OR payment_reference LIKE 'EP-%');
-DELETE FROM notifications WHERE payment_id IN (SELECT id FROM payments WHERE payment_reference LIKE 'SEED-PAY-%' OR payment_reference LIKE 'EP-%');
-DELETE FROM system_events WHERE entity_id IN (SELECT id FROM payments WHERE payment_reference LIKE 'SEED-PAY-%' OR payment_reference LIKE 'EP-%');
-DELETE FROM payments WHERE payment_reference LIKE 'SEED-PAY-%' OR payment_reference LIKE 'EP-%';
+-- ============================================================================
+-- STEP 1: DISABLE FOREIGN KEY CHECKS FOR CLEAN TRUNCATION
+-- ============================================================================
+SET FOREIGN_KEY_CHECKS=0;
+
+-- ============================================================================
+-- STEP 2: DELETE ALL DATA IN CORRECT ORDER (Removes all data, keeps structure)
+-- NOTE: Use DELETE instead of TRUNCATE to bypass foreign key constraint checks
+-- Order matters for foreign key relationships - delete child tables first
+-- ============================================================================
+-- Onboarding Service Tables (children depend on customers)
+DELETE FROM consents;
+
+-- Payment Service Tables (ordered by foreign key dependencies)
+DELETE FROM fraud_results;
+DELETE FROM risk_scores;
+DELETE FROM dead_letter_queue;
+DELETE FROM processing_queue;
+DELETE FROM payment_history;
+DELETE FROM payment_verifications;
+DELETE FROM audit_logs;
+DELETE FROM system_events;
+DELETE FROM notifications;
+DELETE FROM payment_metrics;
+DELETE FROM payments;
 DELETE FROM fraud_rules;
-DELETE FROM accounts WHERE account_number LIKE 'ACC-1000%' OR account_number = 'ACC-ADMIN-001';
 
--- Clean up previous seed customers (idempotent by email suffix)
-DELETE FROM consents  WHERE customer_id IN (SELECT id FROM customers WHERE email LIKE '%@rupeex.seed');
-DELETE FROM customers WHERE email LIKE '%@rupeex.seed';
-
--- Seed accounts (member accounts + admin platform account)
-INSERT INTO accounts (account_number, account_holder, account_type, currency, country_code, balance, status, created_at, updated_at)
-VALUES
-  ('ACC-10001', 'Aarav Mehta',        'SAVINGS',  'INR', 'IN', 125000.00, 'ACTIVE', NOW(), NOW()),
-  ('ACC-10002', 'Priya Sharma',       'CURRENT',  'INR', 'IN', 340000.00, 'ACTIVE', NOW(), NOW()),
-  ('ACC-10003', 'Neo Retail Pvt Ltd', 'CURRENT',  'INR', 'IN', 870000.00, 'ACTIVE', NOW(), NOW()),
-  ('ACC-10004', 'Zen Imports LLC',    'CURRENT',  'USD', 'US',  48000.00, 'ACTIVE', NOW(), NOW()),
-  ('ACC-10005', 'Lina Das',           'SAVINGS',  'INR', 'IN',  62500.00, 'ACTIVE', NOW(), NOW()),
-  ('ACC-10006', 'Atlas Logistics',    'CURRENT',  'INR', 'IN', 215000.00, 'ACTIVE', NOW(), NOW()),
-  ('ACC-ADMIN-001', 'Platform Admin', 'CURRENT',  'INR', 'IN',       0.00, 'ACTIVE', NOW(), NOW());
+-- Master tables (no children left)
+DELETE FROM accounts;
+DELETE FROM customers;
 
 -- ============================================================================
--- SEED CUSTOMERS (onboarding service) — one per account + one ADMIN user
--- Fixed UUIDs allow idempotent re-seeding.
--- Status APPROVED so they are active members.
+-- STEP 3: RESET AUTO_INCREMENT COUNTERS (Optional but recommended)
 -- ============================================================================
-INSERT INTO customers (id, full_name, email, phone, dob, status, account_number, account_type, currency, country_code, role, created_at, updated_at)
-VALUES
-  (UUID_TO_BIN('a1000001-1001-1001-1001-100000000001'), 'Aarav Mehta',        'aarav.mehta@rupeex.seed',     '+91-9100010001', '1990-04-15', 'APPROVED', 'ACC-10001',    'SAVINGS', 'INR', 'IN', 'MEMBER', NOW(), NOW()),
-  (UUID_TO_BIN('a1000002-2002-2002-2002-200000000002'), 'Priya Sharma',       'priya.sharma@rupeex.seed',    '+91-9100020002', '1988-07-22', 'APPROVED', 'ACC-10002',    'CURRENT', 'INR', 'IN', 'MEMBER', NOW(), NOW()),
-  (UUID_TO_BIN('a1000003-3003-3003-3003-300000000003'), 'Neo Retail Pvt Ltd', 'neo.retail@rupeex.seed',      '+91-9100030003', NULL,         'APPROVED', 'ACC-10003',    'CURRENT', 'INR', 'IN', 'MEMBER', NOW(), NOW()),
-  (UUID_TO_BIN('a1000004-4004-4004-4004-400000000004'), 'Zen Imports LLC',    'zen.imports@rupeex.seed',     '+91-9100040004', NULL,         'APPROVED', 'ACC-10004',    'CURRENT', 'USD', 'US', 'MEMBER', NOW(), NOW()),
-  (UUID_TO_BIN('a1000005-5005-5005-5005-500000000005'), 'Lina Das',           'lina.das@rupeex.seed',        '+91-9100050005', '1995-11-30', 'APPROVED', 'ACC-10005',    'SAVINGS', 'INR', 'IN', 'MEMBER', NOW(), NOW()),
-  (UUID_TO_BIN('a1000006-6006-6006-6006-600000000006'), 'Atlas Logistics',    'atlas.logistics@rupeex.seed', '+91-9100060006', NULL,         'APPROVED', 'ACC-10006',    'CURRENT', 'INR', 'IN', 'MEMBER', NOW(), NOW()),
-  (UUID_TO_BIN('a0000000-0000-0000-0000-ad0000000001'), 'Platform Admin',     'admin@rupeex.seed',           '+91-9000000001', NULL,         'APPROVED', 'ACC-ADMIN-001','CURRENT', 'INR', 'IN', 'ADMIN',  NOW(), NOW());
-
--- Seed consents for all customers (TERMS_AND_PRIVACY accepted)
-INSERT INTO consents (customer_id, consent_type, consent_version, accepted, accepted_at, created_at)
-VALUES
-  (UUID_TO_BIN('a1000001-1001-1001-1001-100000000001'), 'TERMS_AND_PRIVACY', 'v1.0', TRUE, NOW(), NOW()),
-  (UUID_TO_BIN('a1000002-2002-2002-2002-200000000002'), 'TERMS_AND_PRIVACY', 'v1.0', TRUE, NOW(), NOW()),
-  (UUID_TO_BIN('a1000003-3003-3003-3003-300000000003'), 'TERMS_AND_PRIVACY', 'v1.0', TRUE, NOW(), NOW()),
-  (UUID_TO_BIN('a1000004-4004-4004-4004-400000000004'), 'TERMS_AND_PRIVACY', 'v1.0', TRUE, NOW(), NOW()),
-  (UUID_TO_BIN('a1000005-5005-5005-5005-500000000005'), 'TERMS_AND_PRIVACY', 'v1.0', TRUE, NOW(), NOW()),
-  (UUID_TO_BIN('a1000006-6006-6006-6006-600000000006'), 'TERMS_AND_PRIVACY', 'v1.0', TRUE, NOW(), NOW()),
-  (UUID_TO_BIN('a0000000-0000-0000-0000-ad0000000001'), 'TERMS_AND_PRIVACY', 'v1.0', TRUE, NOW(), NOW());
+ALTER TABLE accounts AUTO_INCREMENT = 1;
+ALTER TABLE customers AUTO_INCREMENT = 1;
+ALTER TABLE payments AUTO_INCREMENT = 1;
+ALTER TABLE payment_history AUTO_INCREMENT = 1;
+ALTER TABLE payment_verifications AUTO_INCREMENT = 1;
+ALTER TABLE notifications AUTO_INCREMENT = 1;
+ALTER TABLE fraud_rules AUTO_INCREMENT = 1;
+ALTER TABLE fraud_results AUTO_INCREMENT = 1;
+ALTER TABLE risk_scores AUTO_INCREMENT = 1;
+ALTER TABLE processing_queue AUTO_INCREMENT = 1;
+ALTER TABLE dead_letter_queue AUTO_INCREMENT = 1;
+ALTER TABLE audit_logs AUTO_INCREMENT = 1;
+ALTER TABLE system_events AUTO_INCREMENT = 1;
+ALTER TABLE payment_metrics AUTO_INCREMENT = 1;
+ALTER TABLE consents AUTO_INCREMENT = 1;
 
 -- ============================================================================
--- FRAUD RULES CONFIGURATION - All 7 Rule Types with Proper Settings
+-- STEP 4: RE-ENABLE FOREIGN KEY CHECKS
+-- ============================================================================
+SET FOREIGN_KEY_CHECKS=1;
+
+-- ============================================================================
+-- STEP 5: SEED ACCOUNTS (member accounts + admin platform account)
+-- ============================================================================
+INSERT INTO accounts (account_number, account_holder, account_type, currency, country_code, balance, status, email, created_at, updated_at)
+VALUES
+  ('ACC-10001', 'Aarav Mehta',        'SAVINGS',  'INR', 'IN', 125000.00, 'ACTIVE', 'aarav.mehta@rupeex.seedaccount', NOW(), NOW()),
+  ('ACC-10002', 'Priya Sharma',       'CURRENT',  'INR', 'IN', 340000.00, 'ACTIVE', 'priya.sharma@rupeex.seedaccount', NOW(), NOW()),
+  ('ACC-10003', 'Neo Retail Pvt Ltd', 'CURRENT',  'INR', 'IN', 870000.00, 'ACTIVE', 'neo.retail@rupeex.seedaccount', NOW(), NOW()),
+  ('ACC-10004', 'Zen Imports LLC',    'CURRENT',  'USD', 'US',  48000.00, 'ACTIVE', 'zen.imports@rupeex.seedaccount', NOW(), NOW()),
+  ('ACC-10005', 'Lina Das',           'SAVINGS',  'INR', 'IN',  62500.00, 'ACTIVE', 'lina.das@rupeex.seedaccount', NOW(), NOW()),
+  ('ACC-10006', 'Atlas Logistics',    'CURRENT',  'INR', 'IN', 215000.00, 'ACTIVE', 'atlas.logistics@rupeex.seedaccount', NOW(), NOW()),
+  ('ACC-ADMIN-001', 'Platform Admin', 'CURRENT',  'INR', 'IN',       0.00, 'ACTIVE', 'admin@rupeex.seedaccount', NOW(), NOW());
+
+-- ============================================================================
+-- STEP 6: FRAUD RULES CONFIGURATION - All 7 Rule Types with Proper Settings
 -- ============================================================================
 
 -- Rule 1: LARGE_TRANSACTION
@@ -135,15 +150,16 @@ VALUES
 
 -- Seed payments (QUEUED and PROCESSING for testing, SENT/SETTLED for completed flows)
 -- Note: SETTLED cannot be CANCELLED per PaymentStateMachine - only CREATED/QUEUED/PROCESSING can be
+-- payer_email field captures the payer's email for notifications (resolution fallback to account.email)
 INSERT INTO payments
-  (payment_reference, amount, currency, source_account, destination_account, status, error_code, error_message, idempotency_key, created_at, updated_at)
+  (payment_reference, amount, currency, source_account, destination_account, status, payer_email, error_code, error_message, idempotency_key, created_at, updated_at)
 VALUES
-  ('SEED-PAY-1001', 1500.00, 'INR', 'ACC-10001', 'ACC-10003', 'QUEUED', NULL, NULL, 'seed-idem-1001', NOW(), NOW()),
-  ('SEED-PAY-1002', 42000.00, 'INR', 'ACC-10002', 'ACC-10006', 'QUEUED', NULL, NULL, 'seed-idem-1002', NOW(), NOW()),
-  ('SEED-PAY-1003', 980000.00, 'INR', 'ACC-10003', 'ACC-10005', 'PROCESSING', NULL, NULL, 'seed-idem-1003', NOW(), NOW()),
-  ('SEED-PAY-1004', 15500.75, 'USD', 'ACC-10004', 'ACC-10002', 'PROCESSING', NULL, NULL, 'seed-idem-1004', NOW(), NOW()),
-  ('SEED-PAY-1005', 8750.00, 'INR', 'ACC-10005', 'ACC-10001', 'SENT', NULL, NULL, 'seed-idem-1005', NOW(), NOW()),
-  ('SEED-PAY-1006', 2300.00, 'INR', 'ACC-10006', 'ACC-10002', 'FAILED', 'RISK_BLOCKED', 'Blocked by risk policy', 'seed-idem-1006', NOW(), NOW());
+  ('SEED-PAY-1001', 1500.00, 'INR', 'ACC-10001', 'ACC-10003', 'QUEUED', 'aarav.mehta@rupeex.seedaccount', NULL, NULL, 'seed-idem-1001', NOW(), NOW()),
+  ('SEED-PAY-1002', 42000.00, 'INR', 'ACC-10002', 'ACC-10006', 'QUEUED', 'priya.sharma@rupeex.seedaccount', NULL, NULL, 'seed-idem-1002', NOW(), NOW()),
+  ('SEED-PAY-1003', 980000.00, 'INR', 'ACC-10003', 'ACC-10005', 'PROCESSING', 'neo.retail@rupeex.seedaccount', NULL, NULL, 'seed-idem-1003', NOW(), NOW()),
+  ('SEED-PAY-1004', 15500.75, 'USD', 'ACC-10004', 'ACC-10002', 'PROCESSING', 'zen.imports@rupeex.seedaccount', NULL, NULL, 'seed-idem-1004', NOW(), NOW()),
+  ('SEED-PAY-1005', 8750.00, 'INR', 'ACC-10005', 'ACC-10001', 'SENT', 'lina.das@rupeex.seedaccount', NULL, NULL, 'seed-idem-1005', NOW(), NOW()),
+  ('SEED-PAY-1006', 2300.00, 'INR', 'ACC-10006', 'ACC-10002', 'FAILED', 'atlas.logistics@rupeex.seedaccount', 'RISK_BLOCKED', 'Blocked by risk policy', 'seed-idem-1006', NOW(), NOW());
 
 -- Seed payment history for traceability
 INSERT INTO payment_history (payment_id, old_status, new_status, reason, changed_at)

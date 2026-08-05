@@ -99,4 +99,3 @@ class NotificationControllerTest {
                 .andExpect(content().contentTypeCompatibleWith("application/json"));
     }
 }
-

@@ -29,6 +29,8 @@ public class PaymentPlatformRequest {
     @NotBlank
     private String destinationCountry;
 
+    private String payerEmail;
+
     public BigDecimal getAmount() {
         return amount;
     }
@@ -83,5 +85,13 @@ public class PaymentPlatformRequest {
 
     public void setDestinationCountry(String destinationCountry) {
         this.destinationCountry = destinationCountry;
+    }
+
+    public String getPayerEmail() {
+        return payerEmail;
+    }
+
+    public void setPayerEmail(String payerEmail) {
+        this.payerEmail = payerEmail;
     }
 }

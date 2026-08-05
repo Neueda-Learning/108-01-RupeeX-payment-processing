@@ -144,7 +144,9 @@ public class CustomerOnboardingServiceImpl implements CustomerOnboardingService 
             createAccountInPaymentService(customer);
             log.info("Account created in payment service for customer: {}, account: {}", customerId, customer.getAccountNumber());
         } catch (Exception e) {
-            log.error("Failed to create account in payment service for customer: {}. Error: {}", customerId, e.getMessage());
+            log.error("Failed to create account in payment service for customer: {}. Account must be created manually or retry approval.", customerId, e);
+            // In production, you might want to set a status flag or send an alert
+            throw new RuntimeException("Account creation in payment service failed. Please retry.", e);
         }
     }
 
@@ -156,7 +158,18 @@ public class CustomerOnboardingServiceImpl implements CustomerOnboardingService 
         payload.put("accountType", customer.getAccountType() != null ? customer.getAccountType() : "SAVINGS");
         payload.put("currency", customer.getCurrency() != null ? customer.getCurrency() : "INR");
         payload.put("countryCode", customer.getCountryCode());
-        restTemplate.postForEntity(url, payload, Map.class);
+        payload.put("email", customer.getEmail());
+        
+        log.debug("Creating account in payment service with payload: {}", payload);
+        
+        try {
+            Map<String, Object> response = restTemplate.postForObject(url, payload, Map.class);
+            log.info("Account created successfully in payment service: {}", response);
+        } catch (Exception e) {
+            log.error("Failed to create account in payment service for customer: {}. URL: {}, Payload: {}, Error: {}", 
+                    customer.getId(), url, payload, e.getMessage(), e);
+            throw e;
+        }
     }
 
     @Override

@@ -7,7 +7,10 @@ services:
     ports:
       # Bound to localhost only: not exposed to the internet. Use an SSH
       # tunnel for direct debugging; public traffic goes through nginx.
-      - "127.0.0.1:${SERVER_PORT:-8080}:8080"
+      # Host port defaults to 8082 (decoupled from SERVER_PORT, which is the
+      # container's internal Spring Boot port) because 8080 is commonly used
+      # by Jenkins on the same host. Override with APP_HOST_PORT if needed.
+      - "127.0.0.1:${APP_HOST_PORT:-8082}:8080"
     restart: always
 
   onboarding-app:
@@ -44,10 +47,93 @@ services:
       ONBOARDING_BASE_URL: ${ONBOARDING_BASE_URL:-http://onboarding-app:8083/onboarding}
       # Browser-side base URL for onboarding (through nginx at same origin).
       NEXT_PUBLIC_ONBOARDING_BASE_URL: ${NEXT_PUBLIC_ONBOARDING_BASE_URL:-}
+      # Server-side base URL the frontend's /api/bot proxy route uses to
+      # reach the bot-service, resolvable on the internal compose network.
+      BOT_SERVICE_URL: ${BOT_SERVICE_URL:-http://bot-service:4001}
       PORT: 3000
     ports:
       # Bound to localhost only, see note on the `app` service above.
       - "127.0.0.1:${FRONTEND_PORT:-3000}:3000"
+    restart: always
+
+  rabbitmq:
+    image: rabbitmq:3.11-management
+    container_name: rupeex-rabbitmq
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    restart: always
+
+  # On-premise LLM + embedding runtime for the bot service. Models persist
+  # in the `ollama_data` volume so they're only pulled once.
+  ollama:
+    image: ollama/ollama:latest
+    container_name: rupeex-ollama
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: always
+
+  # One-shot init job: pulls the chat + embedding models, then exits.
+  ollama-pull:
+    image: ollama/ollama:latest
+    container_name: rupeex-ollama-pull
+    volumes:
+      - ollama_data:/root/.ollama
+    entrypoint: ["sh", "-c"]
+    command: >
+      "ollama serve & sleep 3 &&
+       ollama pull ${SLM_MODEL:-qwen2.5:0.5b} &&
+       ollama pull ${EMBED_MODEL:-nomic-embed-text} &&
+       echo 'model pull complete'"
+    depends_on:
+      - ollama
+
+  bot-service:
+    build:
+      context: ./bot-service
+    container_name: rupeex-bot-service
+    environment:
+      - AMQP_URL=amqp://guest:guest@rabbitmq:5672
+      - PAYMENT_API_URL=http://app:8080/api
+      - BOT_HIGH_VALUE_THRESHOLD=100000
+      - SLM_ENABLED=true
+      - SLM_BASE_URL=http://ollama:11434
+      - SLM_MODEL=qwen2.5:0.5b
+      # CPU-only inference is slow, especially on cold start; give it room
+      # before falling back to the rule-based parser.
+      - SLM_TIMEOUT_MS=25000
+      - RAG_ENABLED=true
+      - EMBED_MODEL=nomic-embed-text
+      - RAG_TOP_K=3
+    ports:
+      - "127.0.0.1:4001:4001"
+    depends_on:
+      - rabbitmq
+      - ollama
+      - app
+    restart: always
+
+  bot-worker:
+    build:
+      context: ./bot-service
+    container_name: rupeex-bot-worker
+    command: ["node", "dist/worker.js"]
+    environment:
+      - AMQP_URL=amqp://guest:guest@rabbitmq:5672
+      - PAYMENT_API_URL=http://app:8080/api
+    depends_on:
+      - rabbitmq
+      - app
     restart: always
 
   nginx:
@@ -57,8 +143,12 @@ services:
       - app
       - frontend
       - onboarding-app
+      - bot-service
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
       - "${NGINX_PORT:-80}:80"
     restart: always
+
+volumes:
+  ollama_data:
