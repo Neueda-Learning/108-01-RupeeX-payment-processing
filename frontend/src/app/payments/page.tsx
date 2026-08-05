@@ -29,7 +29,13 @@ export default function PaymentsPage() {
     getPayments()
       .then((rows) => {
         if (!cancelled) {
-          setPayments(rows);
+          // Sort payments by createdAt descending (newest first)
+          const sorted = [...rows].sort((a, b) => {
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          });
+          console.log('Fetched payments:', sorted.length, 'First payment:', sorted[0]?.id, sorted[0]?.createdAt);
+          console.log('Risk scores:', sorted.map(p => ({ id: p.id, riskScore: p.riskScore?.score })));
+          setPayments(sorted);
         }
       })
       .finally(() => {
@@ -42,6 +48,16 @@ export default function PaymentsPage() {
       cancelled = true;
     };
   }, []);
+
+  const handlePaymentCreated = (payment: Payment) => {
+    setPayments((current) => {
+      // Add new payment at the top and re-sort to maintain order
+      const updated = [payment, ...current];
+      return updated.sort((a, b) => {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+    });
+  };
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 px-6 py-10 lg:px-8">
@@ -59,7 +75,7 @@ export default function PaymentsPage() {
       </header>
 
       <PaymentCreateForm
-        onCreated={(payment) => setPayments((current) => [payment, ...current])}
+        onCreated={handlePaymentCreated}
       />
 
       <section className="panel rounded-2xl overflow-hidden">

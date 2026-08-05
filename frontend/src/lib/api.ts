@@ -168,14 +168,12 @@ function normalizePayment(payment: BackendPayment): Payment {
 }
 
 /**
- * Fetches recent payments from the backend.
+ * Fetches recent payments from the backend with risk scores and fraud results included.
+ * Payments are ordered by newest first.
  */
 export async function getPayments(): Promise<Payment[]> {
-  const response = await request<
-    PaginatedResponse<BackendPayment> | BackendPayment[]
-  >("/payments");
-  const rows = Array.isArray(response) ? response : response.content;
-  return rows.map(normalizePayment);
+  const response = await request<BackendPayment[]>("/payments/all");
+  return response.map(normalizePayment);
 }
 
 export async function createPayment(
