@@ -156,6 +156,7 @@ public class CustomerOnboardingServiceImpl implements CustomerOnboardingService 
         payload.put("accountType", customer.getAccountType() != null ? customer.getAccountType() : "SAVINGS");
         payload.put("currency", customer.getCurrency() != null ? customer.getCurrency() : "INR");
         payload.put("countryCode", customer.getCountryCode());
+        payload.put("email", customer.getEmail());
         restTemplate.postForEntity(url, payload, Map.class);
     }
 

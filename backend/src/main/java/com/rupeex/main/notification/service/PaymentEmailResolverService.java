@@ -122,6 +122,10 @@ public class PaymentEmailResolverService {
 
     /**
      * Resolves source account holder email for debit notifications.
+     * Uses multi-level fallback strategy:
+     * 1. Account.email lookup via sourceAccount (primary)
+     * 2. Payment.payerEmail (fallback for API-created accounts)
+     * 3. Return null if both unavailable
      * 
      * @param paymentId The payment ID to resolve source account holder email for
      * @return The resolved source account holder email, or null if not found
@@ -140,15 +144,24 @@ public class PaymentEmailResolverService {
                 return null;
             }
 
+            // Strategy 1: Try Account.email first
             Account sourceAccount = accountsRepository.findByAccountNumber(sourceAccountNumber).orElse(null);
             if (sourceAccount != null && sourceAccount.getEmail() != null && 
                 !sourceAccount.getEmail().trim().isEmpty()) {
-                logger.debug("Resolved source account holder email for paymentId={}: {}", 
+                logger.debug("Resolved source account holder email from Account for paymentId={}: {}", 
                         paymentId, maskEmail(sourceAccount.getEmail()));
                 return sourceAccount.getEmail();
             }
 
-            logger.warn("Could not resolve source account holder email for paymentId={}. Account {} has no email.", 
+            // Strategy 2: Fallback to Payment.payerEmail (for API-created accounts without stored email)
+            if (payment.getPayerEmail() != null && !payment.getPayerEmail().trim().isEmpty()) {
+                logger.debug("Resolved source account holder email from Payment.payerEmail for paymentId={}: {}", 
+                        paymentId, maskEmail(payment.getPayerEmail()));
+                return payment.getPayerEmail();
+            }
+
+            // Strategy 3: Email not found
+            logger.warn("Could not resolve source account holder email for paymentId={}. Account {} has no email and Payment.payerEmail is null.", 
                     paymentId, sourceAccountNumber);
             return null;
 

@@ -96,8 +96,14 @@ public class QueueProcessingScheduler {
             return;
         }
 
+        // Notify source account holder of debit
+        notificationEngineService.notifyPaymentEvent(payment.getId(), "DEBIT_POSTED", "Funds debited from your account");
+
         // Credit destination account
         accountsRepository.creditBalance(payment.getDestinationAccount(), payment.getAmount());
+
+        // Notify destination account holder of credit
+        notificationEngineService.notifyPaymentEvent(payment.getId(), "CREDIT_POSTED", "Funds credited to your account");
 
         payment.setStatus(PaymentStatus.SETTLED);
         paymentRepository.save(payment);

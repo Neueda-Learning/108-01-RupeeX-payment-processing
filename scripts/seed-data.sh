@@ -59,29 +59,34 @@ run_mysql_query() {
 echo "🔄 Starting database reset and seeding..."
 echo ""
 
-# Step 1: Drop all existing tables (disable foreign key checks temporarily)
-echo "Step 1/4: Dropping all existing tables..."
+# Step 1: Truncate all existing tables (disable foreign key checks temporarily)
+echo "Step 1/4: Emptying all existing tables..."
 run_mysql_query "SET FOREIGN_KEY_CHECKS=0;"
-run_mysql_query "DROP TABLE IF EXISTS email_notification_log;"
-run_mysql_query "DROP TABLE IF EXISTS notifications;"
-run_mysql_query "DROP TABLE IF EXISTS system_events;"
-run_mysql_query "DROP TABLE IF EXISTS audit_logs;"
-run_mysql_query "DROP TABLE IF EXISTS dead_letter_queue;"
-run_mysql_query "DROP TABLE IF EXISTS processing_queue;"
-run_mysql_query "DROP TABLE IF EXISTS payment_history;"
-run_mysql_query "DROP TABLE IF EXISTS fraud_detection_rules;"
-run_mysql_query "DROP TABLE IF EXISTS payments;"
-run_mysql_query "DROP TABLE IF EXISTS accounts;"
-run_mysql_query "DROP TABLE IF EXISTS users;"
+run_mysql_query "TRUNCATE TABLE fraud_results;"
+run_mysql_query "TRUNCATE TABLE risk_scores;"
+run_mysql_query "TRUNCATE TABLE dead_letter_queue;"
+run_mysql_query "TRUNCATE TABLE processing_queue;"
+run_mysql_query "TRUNCATE TABLE payment_history;"
+run_mysql_query "TRUNCATE TABLE audit_logs;"
+run_mysql_query "TRUNCATE TABLE system_events;"
+run_mysql_query "TRUNCATE TABLE notifications;"
+run_mysql_query "TRUNCATE TABLE payment_metrics;"
+run_mysql_query "TRUNCATE TABLE payments;"
+run_mysql_query "TRUNCATE TABLE fraud_rules;"
+run_mysql_query "TRUNCATE TABLE accounts;"
 run_mysql_query "SET FOREIGN_KEY_CHECKS=1;"
-echo "✅ All tables dropped successfully."
+echo "✅ All tables emptied successfully."
 echo ""
 
-# Step 2: Recreate schema from scratch (includes payer_email via migration)
-echo "Step 2/4: Recreating database schema from scratch..."
-"${COMPOSE_CMD[@]}" exec -T -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" db \
-  mysql -uroot "$MYSQL_DATABASE" < "$SCHEMA_FILE"
-echo "✅ Schema recreated successfully."
+# Step 2: Verify schema is present (if tables don't exist, apply schema)
+echo "Step 2/4: Verifying database schema..."
+ACCOUNTS_TABLE_EXISTS="$(run_mysql_query "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${MYSQL_DATABASE}' AND table_name='accounts';")"
+if [[ "$ACCOUNTS_TABLE_EXISTS" != "1" ]]; then
+  echo "Schema tables not found. Applying schema..."
+  "${COMPOSE_CMD[@]}" exec -T -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" db \
+    mysql -uroot "$MYSQL_DATABASE" < "$SCHEMA_FILE"
+fi
+echo "✅ Schema verified successfully."
 echo ""
 
 # Step 3: Apply migrations (add payer_email column if not already present)

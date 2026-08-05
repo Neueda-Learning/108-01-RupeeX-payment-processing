@@ -72,6 +72,7 @@ public class AccountController {
         account.setAccountType(request.getAccountType() != null ? request.getAccountType() : "SAVINGS");
         account.setCurrency(request.getCurrency() != null ? request.getCurrency() : "INR");
         account.setCountryCode(request.getCountryCode());
+        account.setEmail(request.getEmail());
         account.setStatus("ACTIVE");
         return accountsRepository.save(account);
     }

@@ -67,6 +67,7 @@ public class PaymentServiceImpl
         payment.setSourceAccount(request.getSourceAccount());
         payment.setDestinationAccount(request.getDestinationAccount());
         payment.setIdempotencyKey(request.getIdempotencyKey());
+        payment.setPayerEmail(request.getCustomerEmail());
         payment.setPaymentReference(
                 "PAY-" + UUID.randomUUID()
         );

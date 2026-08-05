@@ -7,6 +7,7 @@ public class CreateAccountRequest {
     private String accountType;
     private String currency;
     private String countryCode;
+    private String email;
 
     public String getAccountNumber() { return accountNumber; }
     public void setAccountNumber(String accountNumber) { this.accountNumber = accountNumber; }
@@ -22,5 +23,8 @@ public class CreateAccountRequest {
 
     public String getCountryCode() { return countryCode; }
     public void setCountryCode(String countryCode) { this.countryCode = countryCode; }
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 }
 
