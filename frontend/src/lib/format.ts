@@ -47,6 +47,8 @@ const STATUS_STYLES: Record<string, string> = {
   PROCESSING:
     "bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-amber-500/20",
   PENDING: "bg-sky-500/10 text-sky-600 dark:text-sky-400 ring-sky-500/20",
+  PENDING_ADMIN_APPROVAL:
+    "bg-orange-500/10 text-orange-600 dark:text-orange-400 ring-orange-500/20",
   SENT: "bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-blue-500/20",
   SETTLED:
     "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-emerald-500/20",

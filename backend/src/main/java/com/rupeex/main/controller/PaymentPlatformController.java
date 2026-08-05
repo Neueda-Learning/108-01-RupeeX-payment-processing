@@ -19,6 +19,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/payments")
@@ -108,5 +109,41 @@ public class PaymentPlatformController {
             @Parameter(description = "Payment ID", example = "12345", required = true)
             @PathVariable Long id) {
         return orchestrationService.history(id);
+    }
+
+    @GetMapping("/pending-approval")
+    @Operation(summary = "Get payments pending admin approval", description = "Retrieve all payments with risk scores 80-100 requiring admin approval")
+    @ApiResponse(responseCode = "200", description = "Pending approval payments retrieved successfully")
+    public List<PaymentPlatformResponse> getPendingAdminApproval() {
+        return orchestrationService.getPendingAdminApprovalPayments();
+    }
+
+    @PostMapping("/{id}/admin-approve")
+    @Operation(summary = "Admin approve payment", description = "Approve a payment that is pending admin review (risk score 80-100)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Payment approved successfully"),
+            @ApiResponse(responseCode = "404", description = "Payment not found"),
+            @ApiResponse(responseCode = "400", description = "Payment not in correct status for approval")
+    })
+    public PaymentPlatformResponse adminApprove(
+            @Parameter(description = "Payment ID", example = "12345", required = true)
+            @PathVariable Long id) {
+        return orchestrationService.adminApprovePayment(id);
+    }
+
+    @PostMapping("/{id}/admin-decline")
+    @Operation(summary = "Admin decline payment", description = "Decline a payment that is pending admin review (risk score 80-100)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Payment declined successfully"),
+            @ApiResponse(responseCode = "404", description = "Payment not found"),
+            @ApiResponse(responseCode = "400", description = "Payment not in correct status for decline")
+    })
+    public PaymentPlatformResponse adminDecline(
+            @Parameter(description = "Payment ID", example = "12345", required = true)
+            @PathVariable Long id,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Decline reason")
+            @RequestBody(required = false) Map<String, String> body) {
+        String reason = body != null ? body.get("reason") : "Declined by administrator";
+        return orchestrationService.adminDeclinePayment(id, reason);
     }
 }

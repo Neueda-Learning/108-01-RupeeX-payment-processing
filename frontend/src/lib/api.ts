@@ -310,4 +310,24 @@ export async function getDeadLetterQueue(): Promise<DeadLetterEntry[]> {
   return request<DeadLetterEntry[]>("/dlq");
 }
 
+export async function getPendingAdminApprovalPayments(): Promise<Payment[]> {
+  const response = await request<BackendPayment[]>("/payments/pending-approval");
+  return response.map(normalizePayment);
+}
+
+export async function adminApprovePayment(id: number): Promise<Payment> {
+  const payment = await request<BackendPayment>(`/payments/${id}/admin-approve`, {
+    method: "POST",
+  });
+  return normalizePayment(payment);
+}
+
+export async function adminDeclinePayment(id: number, reason?: string): Promise<Payment> {
+  const payment = await request<BackendPayment>(`/payments/${id}/admin-decline`, {
+    method: "POST",
+    body: JSON.stringify({ reason: reason || "Declined by administrator" }),
+  });
+  return normalizePayment(payment);
+}
+
 export { ApiError };
