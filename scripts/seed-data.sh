@@ -4,7 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SEED_FILE="$ROOT_DIR/scripts/seed-data.sql"
 SCHEMA_FILE="$ROOT_DIR/backend/src/main/resources/schema.sql"
-MIGRATION_FILE="$ROOT_DIR/scripts/add-payer-email-column.sql"
+PAYER_EMAIL_MIGRATION="$ROOT_DIR/scripts/add-payer-email-column.sql"
+CURRENCY_FIELDS_MIGRATION="$ROOT_DIR/scripts/add-currency-fields.sql"
 ENV_FILE="$ROOT_DIR/.env"
 
 if [[ ! -f "$SEED_FILE" ]]; then
@@ -17,8 +18,13 @@ if [[ ! -f "$SCHEMA_FILE" ]]; then
   exit 1
 fi
 
-if [[ ! -f "$MIGRATION_FILE" ]]; then
-  echo "Migration SQL not found at $MIGRATION_FILE" >&2
+if [[ ! -f "$PAYER_EMAIL_MIGRATION" ]]; then
+  echo "Payer email migration SQL not found at $PAYER_EMAIL_MIGRATION" >&2
+  exit 1
+fi
+
+if [[ ! -f "$CURRENCY_FIELDS_MIGRATION" ]]; then
+  echo "Currency fields migration SQL not found at $CURRENCY_FIELDS_MIGRATION" >&2
   exit 1
 fi
 
@@ -79,14 +85,21 @@ echo "✅ Schema recreated successfully."
 echo ""
 
 # Step 3: Apply migrations (add payer_email column if not already present)
-echo "Step 3/4: Applying database migrations..."
+echo "Step 3/5: Applying database migrations..."
 "${COMPOSE_CMD[@]}" exec -T -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" db \
-  mysql -uroot "$MYSQL_DATABASE" < "$MIGRATION_FILE" 2>/dev/null || true
-echo "✅ Migration applied successfully."
+  mysql -uroot "$MYSQL_DATABASE" < "$PAYER_EMAIL_MIGRATION" 2>/dev/null || true
+echo "✅ Payer email migration applied successfully."
 echo ""
 
-# Step 4: Seed fresh test data
-echo "Step 4/4: Seeding fresh test data..."
+# Step 4: Apply currency fields migration
+echo "Step 4/5: Applying currency conversion fields migration..."
+"${COMPOSE_CMD[@]}" exec -T -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" db \
+  mysql -uroot "$MYSQL_DATABASE" < "$CURRENCY_FIELDS_MIGRATION" 2>/dev/null || true
+echo "✅ Currency fields migration applied successfully."
+echo ""
+
+# Step 5: Seed fresh test data
+echo "Step 5/5: Seeding fresh test data..."
 "${COMPOSE_CMD[@]}" exec -T -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" db \
   mysql -uroot "$MYSQL_DATABASE" < "$SEED_FILE"
 echo "✅ Test data seeded successfully."
@@ -97,7 +110,7 @@ echo "✅ Database reset completed successfully!"
 echo "═══════════════════════════════════════════════"
 echo "Database: $MYSQL_DATABASE"
 echo "Schema: Applied from $SCHEMA_FILE"
-echo "Migration: Applied from $MIGRATION_FILE"
+echo "Migrations: Applied from $PAYER_EMAIL_MIGRATION and $CURRENCY_FIELDS_MIGRATION"
 echo "Seed Data: Loaded from $SEED_FILE"
 echo ""
 echo "Database is now fresh with pre-seed data."
