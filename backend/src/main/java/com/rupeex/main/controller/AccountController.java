@@ -14,6 +14,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -22,6 +24,7 @@ import java.util.List;
 @Tag(name = "Accounts", description = "Account management endpoints")
 public class AccountController {
 
+    private static final Logger logger = LoggerFactory.getLogger(AccountController.class);
     private final AccountsRepository accountsRepository;
 
     public AccountController(AccountsRepository accountsRepository) {
@@ -63,9 +66,15 @@ public class AccountController {
                     description = "Account creation request with required fields",
                     required = true)
             @RequestBody CreateAccountRequest request) {
+        
+        logger.debug("Creating account with request: accountNumber={}, accountHolder={}, email={}, currency={}, countryCode={}", 
+                request.getAccountNumber(), request.getAccountHolder(), request.getEmail(), 
+                request.getCurrency(), request.getCountryCode());
+        
         if (accountsRepository.findByAccountNumber(request.getAccountNumber()).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Account already exists: " + request.getAccountNumber());
         }
+        
         Account account = new Account();
         account.setAccountNumber(request.getAccountNumber());
         account.setAccountHolder(request.getAccountHolder());
@@ -74,6 +83,9 @@ public class AccountController {
         account.setCountryCode(request.getCountryCode());
         account.setEmail(request.getEmail());
         account.setStatus("ACTIVE");
-        return accountsRepository.save(account);
+        
+        Account saved = accountsRepository.save(account);
+        logger.info("Account created successfully: accountNumber={}, email={}", saved.getAccountNumber(), saved.getEmail());
+        return saved;
     }
 }

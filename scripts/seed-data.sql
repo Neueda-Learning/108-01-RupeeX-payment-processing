@@ -9,29 +9,57 @@ START TRANSACTION;
 SET FOREIGN_KEY_CHECKS=0;
 
 -- ============================================================================
--- STEP 2: TRUNCATE ALL TABLES (Removes all data, keeps structure)
--- Tables listed here match schema.sql - all existing tables
+-- STEP 2: DELETE ALL DATA IN CORRECT ORDER (Removes all data, keeps structure)
+-- NOTE: Use DELETE instead of TRUNCATE to bypass foreign key constraint checks
+-- Order matters for foreign key relationships - delete child tables first
 -- ============================================================================
-TRUNCATE TABLE fraud_results;
-TRUNCATE TABLE risk_scores;
-TRUNCATE TABLE dead_letter_queue;
-TRUNCATE TABLE processing_queue;
-TRUNCATE TABLE payment_history;
-TRUNCATE TABLE audit_logs;
-TRUNCATE TABLE system_events;
-TRUNCATE TABLE notifications;
-TRUNCATE TABLE payment_metrics;
-TRUNCATE TABLE payments;
-TRUNCATE TABLE fraud_rules;
-TRUNCATE TABLE accounts;
+-- Onboarding Service Tables (children depend on customers)
+DELETE FROM consents;
+
+-- Payment Service Tables (ordered by foreign key dependencies)
+DELETE FROM fraud_results;
+DELETE FROM risk_scores;
+DELETE FROM dead_letter_queue;
+DELETE FROM processing_queue;
+DELETE FROM payment_history;
+DELETE FROM payment_verifications;
+DELETE FROM audit_logs;
+DELETE FROM system_events;
+DELETE FROM notifications;
+DELETE FROM payment_metrics;
+DELETE FROM payments;
+DELETE FROM fraud_rules;
+
+-- Master tables (no children left)
+DELETE FROM accounts;
+DELETE FROM customers;
 
 -- ============================================================================
--- STEP 3: RE-ENABLE FOREIGN KEY CHECKS
+-- STEP 3: RESET AUTO_INCREMENT COUNTERS (Optional but recommended)
+-- ============================================================================
+ALTER TABLE accounts AUTO_INCREMENT = 1;
+ALTER TABLE customers AUTO_INCREMENT = 1;
+ALTER TABLE payments AUTO_INCREMENT = 1;
+ALTER TABLE payment_history AUTO_INCREMENT = 1;
+ALTER TABLE payment_verifications AUTO_INCREMENT = 1;
+ALTER TABLE notifications AUTO_INCREMENT = 1;
+ALTER TABLE fraud_rules AUTO_INCREMENT = 1;
+ALTER TABLE fraud_results AUTO_INCREMENT = 1;
+ALTER TABLE risk_scores AUTO_INCREMENT = 1;
+ALTER TABLE processing_queue AUTO_INCREMENT = 1;
+ALTER TABLE dead_letter_queue AUTO_INCREMENT = 1;
+ALTER TABLE audit_logs AUTO_INCREMENT = 1;
+ALTER TABLE system_events AUTO_INCREMENT = 1;
+ALTER TABLE payment_metrics AUTO_INCREMENT = 1;
+ALTER TABLE consents AUTO_INCREMENT = 1;
+
+-- ============================================================================
+-- STEP 4: RE-ENABLE FOREIGN KEY CHECKS
 -- ============================================================================
 SET FOREIGN_KEY_CHECKS=1;
 
 -- ============================================================================
--- SEED ACCOUNTS (member accounts + admin platform account)
+-- STEP 5: SEED ACCOUNTS (member accounts + admin platform account)
 -- ============================================================================
 INSERT INTO accounts (account_number, account_holder, account_type, currency, country_code, balance, status, email, created_at, updated_at)
 VALUES
@@ -44,7 +72,7 @@ VALUES
   ('ACC-ADMIN-001', 'Platform Admin', 'CURRENT',  'INR', 'IN',       0.00, 'ACTIVE', 'admin@rupeex.seedaccount', NOW(), NOW());
 
 -- ============================================================================
--- FRAUD RULES CONFIGURATION - All 7 Rule Types with Proper Settings
+-- STEP 6: FRAUD RULES CONFIGURATION - All 7 Rule Types with Proper Settings
 -- ============================================================================
 
 -- Rule 1: LARGE_TRANSACTION

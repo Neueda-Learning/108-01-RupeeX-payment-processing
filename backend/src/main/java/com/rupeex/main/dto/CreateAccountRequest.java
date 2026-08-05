@@ -1,12 +1,25 @@
 package com.rupeex.main.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class CreateAccountRequest {
 
+    @JsonProperty("accountNumber")
     private String accountNumber;
+    
+    @JsonProperty("accountHolder")
     private String accountHolder;
+    
+    @JsonProperty("accountType")
     private String accountType;
+    
+    @JsonProperty("currency")
     private String currency;
+    
+    @JsonProperty("countryCode")
     private String countryCode;
+    
+    @JsonProperty("email")
     private String email;
 
     public String getAccountNumber() { return accountNumber; }
