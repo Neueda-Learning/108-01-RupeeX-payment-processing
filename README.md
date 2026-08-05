@@ -47,9 +47,9 @@ Swagger:
 ### Backend
 
 ```bash
-chmod +x mvnw
-./mvnw clean package
-./mvnw spring-boot:run
+chmod +x backend/mvnw
+./backend/mvnw clean package
+./backend/mvnw spring-boot:run
 ```
 
 ### Full Stack (Docker Compose)
@@ -61,7 +61,7 @@ docker-compose up --build -d
 ## Architecture Docs
 
 - [Platform Blueprint](Documentation/PLATFORM_ARCHITECTURE_BLUEPRINT.md)
-- [Database Schema](src/main/resources/schema.sql)
+- [Database Schema](backend/src/main/resources/schema.sql)
 
 ## Notes
 
