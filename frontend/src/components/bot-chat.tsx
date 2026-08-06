@@ -16,10 +16,24 @@ import {
   ArrowRightLeft,
   Sparkles,
   KeyRound,
+  Maximize2,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
 import { getAccounts, sendOtp, verifyOtp } from "@/lib/api";
+import { useUserStore } from "@/lib/user-store";
+import {
+  isSpeechRecognitionSupported,
+  isSpeechSynthesisSupported,
+  speak,
+  startListening,
+  stopSpeaking,
+  type VoiceListenerHandle,
+} from "@/lib/speech";
 
 type MsgKind = "text" | "account" | "accounts" | "payment" | "error";
 
@@ -105,16 +119,23 @@ const TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
 };
 
 const SUGGESTIONS = [
-  { label: "Check balance", text: "What is the balance of ACC-10001?" },
-  { label: "List accounts", text: "List all accounts" },
+  { label: "Check my balance", text: "What's my balance?" },
+  { label: "My accounts", text: "Show my accounts" },
   { label: "Payment status", text: "What is the status of payment 1?" },
   {
     label: "Create payment",
-    text: "Create payment of 5000 INR from ACC-10001 to ACC-10002",
+    text: "Send 5000 INR to ACC-10002",
   },
 ];
 
-export default function BotChat() {
+export default function BotChat({
+  variant = "fullscreen",
+  onExpand,
+}: {
+  variant?: "fullscreen" | "popup";
+  onExpand?: () => void;
+}) {
+  const currentUser = useUserStore((s) => s.currentUser);
   const [text, setText] = useState("");
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [loading, setLoading] = useState(false);
@@ -130,21 +151,73 @@ export default function BotChat() {
   const [maskedEmail, setMaskedEmail] = useState("");
   const [resolvedEmail, setResolvedEmail] = useState("");
 
+  // Voice: mic input + read-aloud toggle. Both degrade gracefully when the
+  // browser doesn't support the Web Speech API.
+  const [listening, setListening] = useState(false);
+  const [speakerOn, setSpeakerOn] = useState(false);
+  const listenerRef = useRef<VoiceListenerHandle | null>(null);
+  const micSupported = isSpeechRecognitionSupported();
+  const speakerSupported = isSpeechSynthesisSupported();
+
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [msgs, pendingCommand]);
 
+  useEffect(() => {
+    // Stop any in-flight speech synthesis on unmount (e.g. popup closed).
+    return () => stopSpeaking();
+  }, []);
+
   function addBotText(t: string) {
     setMsgs((m) => [...m, { role: "bot", kind: "text", text: t }]);
+    if (speakerOn) speak(t);
   }
 
   function addBotError(t: string) {
     setMsgs((m) => [...m, { role: "bot", kind: "error", text: t }]);
+    if (speakerOn) speak(t);
+  }
+
+  function toggleMic() {
+    if (!micSupported) return;
+    if (listening) {
+      listenerRef.current?.stop();
+      listenerRef.current = null;
+      setListening(false);
+      return;
+    }
+    setListening(true);
+    listenerRef.current = startListening({
+      onResult: (transcript, isFinal) => {
+        setText(transcript);
+        if (isFinal) {
+          setListening(false);
+          listenerRef.current = null;
+          send(transcript);
+        }
+      },
+      onError: () => setListening(false),
+      onEnd: () => setListening(false),
+    });
+  }
+
+  function toggleSpeaker() {
+    if (!speakerSupported) return;
+    setSpeakerOn((prev) => {
+      if (prev) stopSpeaking();
+      return !prev;
+    });
   }
 
   async function send(overrideText?: string) {
     const value = overrideText ?? text;
     if (!value.trim()) return;
+    if (!currentUser) {
+      setMsgs((m) => [...m, { role: "user", kind: "text", text: value }]);
+      setText("");
+      addBotError("Please select or add a user from the navbar first so I know whose account I'm helping with.");
+      return;
+    }
     setMsgs((m) => [...m, { role: "user", kind: "text", text: value }]);
     setText("");
     setLoading(true);
@@ -153,29 +226,32 @@ export default function BotChat() {
       const resp = await fetch("/api/bot/nl", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: value }),
+        body: JSON.stringify({ text: value, user: currentUser }),
       });
       const json = await resp.json();
       const intent: BotCommand | undefined = json.intent;
 
       if (!intent || intent.type === "unknown") {
         addBotText(
-          "Sorry, I couldn't understand that request. Try one of the suggestions below, or phrase it like \"Create payment of 5000 INR from ACC-10001 to ACC-10002\"."
+          "I didn't quite catch that — try one of the suggestions below, or phrase it like \"Send 5000 INR to ACC-10002\"."
         );
         return;
       }
 
       if (intent.type === "query_payments") {
-        addBotText("Please use the Payments page to browse and filter transactions.");
+        addBotText("Head over to the Payments page to browse and filter your transactions.");
+        return;
+      }
+
+      if (json.error) {
+        addBotError(json.error);
         return;
       }
 
       // Read-only lookups (balance/status/list) have already been resolved
       // by the bot service — just render the result, no confirmation needed.
       if (intent.readOnly) {
-        if (json.error) {
-          addBotError(json.error);
-        } else if (intent.type === "check_balance") {
+        if (intent.type === "check_balance") {
           setMsgs((m) => [...m, { role: "bot", kind: "account", account: json.result as AccountInfo }]);
         } else if (intent.type === "list_accounts") {
           setMsgs((m) => [...m, { role: "bot", kind: "accounts", accounts: (json.result as AccountInfo[]) || [] }]);
@@ -209,8 +285,8 @@ export default function BotChat() {
     try {
       const endpoint = pendingCommand.requiresConfirmation ? "/api/bot/confirm" : "/api/bot/execute";
       const body = pendingCommand.requiresConfirmation
-        ? { command: pendingCommand, approver: "ui-user" }
-        : { command: pendingCommand };
+        ? { command: pendingCommand, approver: currentUser?.name ?? "ui-user", user: currentUser }
+        : { command: pendingCommand, user: currentUser };
       const resp = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -218,9 +294,9 @@ export default function BotChat() {
       });
       const json = await resp.json();
       if (resp.ok) {
-        addBotText(`Queued: ${TYPE_LABELS[pendingCommand.type] ?? pendingCommand.type} — it will be processed shortly.`);
+        addBotText(`Done — your ${TYPE_LABELS[pendingCommand.type] ?? pendingCommand.type.replace(/_/g, " ")} is on its way and will be processed shortly.`);
       } else {
-        addBotError(`Failed to queue: ${json.error || json.message || "unknown error"}`);
+        addBotError(json.error || json.message || "I couldn't queue that — please try again.");
       }
     } catch {
       addBotError("Error submitting command");
@@ -295,15 +371,45 @@ export default function BotChat() {
   }
 
   return (
-    <div className="mx-auto flex h-[70vh] max-w-3xl flex-col overflow-hidden rounded-2xl panel">
+    <div
+      className={
+        variant === "popup"
+          ? "flex h-full w-full flex-col overflow-hidden rounded-2xl panel"
+          : "mx-auto flex h-[70vh] max-w-3xl flex-col overflow-hidden rounded-2xl panel"
+      }
+    >
       <div className="flex items-center gap-3 border-b border-black/5 px-5 py-4">
         <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500/10 text-orange-600">
           <Bot className="h-5 w-5" />
         </span>
-        <div>
+        <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-slate-900">RupeeX Assistant</p>
-          <p className="text-xs text-slate-500">Payments, balances, and account lookups in plain English</p>
+          <p className="truncate text-xs text-slate-500">
+            {currentUser ? `Helping ${currentUser.name.split(" ")[0]} with accounts and payments` : "Payments, balances, and account lookups in plain English"}
+          </p>
         </div>
+        {speakerSupported && (
+          <button
+            onClick={toggleSpeaker}
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition ${
+              speakerOn ? "bg-orange-100 text-orange-700" : "text-slate-400 hover:bg-slate-100"
+            }`}
+            aria-label={speakerOn ? "Mute replies" : "Read replies aloud"}
+            title={speakerOn ? "Mute replies" : "Read replies aloud"}
+          >
+            {speakerOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+          </button>
+        )}
+        {onExpand && (
+          <button
+            onClick={onExpand}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+            aria-label="Expand to full screen"
+            title="Expand to full screen"
+          >
+            <Maximize2 className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto bg-slate-50/60 px-5 py-4">
@@ -313,7 +419,9 @@ export default function BotChat() {
               <Sparkles className="h-6 w-6" />
             </span>
             <p className="max-w-xs text-sm text-slate-500">
-              Ask me to create or manage payments, check an account balance, or look up a payment status.
+              {currentUser
+                ? `Hi ${currentUser.name.split(" ")[0]}, ask me to check your balance, review a payment, or send money — just talk to me naturally.`
+                : "Select or add a user from the navbar, then ask me to check a balance, review a payment, or send money."}
             </p>
             <div className="flex flex-wrap justify-center gap-2">
               {SUGGESTIONS.map((s) => (
@@ -365,12 +473,25 @@ export default function BotChat() {
 
       <div className="border-t border-black/5 bg-white px-4 py-3">
         <div className="flex items-center gap-2 rounded-full border border-black/10 bg-slate-50 px-2 py-1.5 focus-within:border-orange-300 focus-within:ring-2 focus-within:ring-orange-100">
+          {micSupported && (
+            <button
+              onClick={toggleMic}
+              disabled={loading}
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                listening ? "bg-red-500 text-white animate-pulse" : "text-slate-400 hover:bg-slate-200"
+              }`}
+              aria-label={listening ? "Stop listening" : "Speak your request"}
+              title={listening ? "Stop listening" : "Speak your request"}
+            >
+              {listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            </button>
+          )}
           <input
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !loading && send()}
             className="flex-1 bg-transparent px-3 py-1.5 text-sm outline-none placeholder:text-slate-400"
-            placeholder="e.g. Check balance of ACC-10001, or create payment of 5000 INR from ACC-10001 to ACC-10002"
+            placeholder={listening ? "Listening…" : "Ask me anything about your accounts or payments"}
           />
           <button
             onClick={() => send()}
