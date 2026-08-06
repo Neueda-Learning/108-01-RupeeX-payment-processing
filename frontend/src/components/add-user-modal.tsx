@@ -7,6 +7,53 @@ import { createAndApproveUser } from "@/lib/onboarding-api";
 import { useUserStore } from "@/lib/user-store";
 import type { UserRole } from "@/lib/user-store";
 
+// Countries list based on:
+// 1. Supported currencies (INR, USD, GBP, EUR, SGD, AED)
+// 2. Countries in seed data (IN, US)
+// 3. High-risk countries from fraud rules (KP, IR, SY, CU, ZW, MM, VE, BY)
+const COUNTRIES = [
+  // Primary countries in seed data
+  { code: "IN", name: "India" },
+  { code: "US", name: "United States" },
+
+  // Other supported currencies countries
+  { code: "GB", name: "United Kingdom" },
+  { code: "DE", name: "Germany" },
+  { code: "FR", name: "France" },
+  { code: "SG", name: "Singapore" },
+  { code: "AE", name: "United Arab Emirates" },
+
+  // High-risk countries (from fraud rules)
+  { code: "KP", name: "North Korea" },
+  { code: "IR", name: "Iran" },
+  { code: "SY", name: "Syria" },
+  { code: "CU", name: "Cuba" },
+  { code: "ZW", name: "Zimbabwe" },
+  { code: "MM", name: "Myanmar" },
+  { code: "VE", name: "Venezuela" },
+  { code: "BY", name: "Belarus" },
+
+  // Other common countries for international payments
+  { code: "CA", name: "Canada" },
+  { code: "AU", name: "Australia" },
+  { code: "NZ", name: "New Zealand" },
+  { code: "JP", name: "Japan" },
+  { code: "CN", name: "China" },
+  { code: "HK", name: "Hong Kong" },
+  { code: "MY", name: "Malaysia" },
+  { code: "TH", name: "Thailand" },
+  { code: "PH", name: "Philippines" },
+  { code: "VN", name: "Vietnam" },
+  { code: "KR", name: "South Korea" },
+  { code: "TW", name: "Taiwan" },
+  { code: "SA", name: "Saudi Arabia" },
+  { code: "QA", name: "Qatar" },
+  { code: "KW", name: "Kuwait" },
+  { code: "BR", name: "Brazil" },
+  { code: "MX", name: "Mexico" },
+  { code: "ZA", name: "South Africa" },
+];
+
 interface AddUserModalProps {
   open: boolean;
   onClose: () => void;
@@ -144,12 +191,18 @@ export function AddUserModal({ open, onClose }: AddUserModalProps) {
                   <option value="EUR">EUR</option>
                 </select>
               </div>
-              <div className="col-span-2">
-                <label className="block text-xs font-medium text-slate-600">Country Code</label>
-                <input name="countryCode" value={form.countryCode} onChange={handleChange}
-                  maxLength={2} placeholder="IN"
-                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-orange-400 focus:outline-none" />
-              </div>
+               <div className="col-span-2">
+                 <label className="block text-xs font-medium text-slate-600">Country *</label>
+                 <select name="countryCode" value={form.countryCode} onChange={handleChange} required
+                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-orange-400 focus:outline-none">
+                   <option value="">Select a country...</option>
+                   {COUNTRIES.map((country) => (
+                     <option key={country.code} value={country.code}>
+                       {country.name} ({country.code})
+                     </option>
+                   ))}
+                 </select>
+               </div>
             </div>
 
             {error && (

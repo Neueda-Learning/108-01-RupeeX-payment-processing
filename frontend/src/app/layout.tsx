@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
-import { Navbar } from "@/components/navbar";
+import { Sidebar } from "@/components/sidebar";
 import { Footer } from "@/components/footer";
 import { BotChatWidget } from "@/components/bot-chat-widget";
 
@@ -32,10 +32,14 @@ export default function RootLayout({
       lang="en"
       className={`${displaySans.variable} ${plexMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col text-slate-900">
-        <Navbar />
-        <main className="flex-1">{children}</main>
-        <Footer />
+      <body className="min-h-full bg-gradient-to-br from-slate-50 to-slate-100">
+        <div className="flex min-h-screen">
+          <Sidebar />
+          <div className="flex flex-1 flex-col md:ml-64">
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </div>
+        </div>
         <BotChatWidget />
       </body>
     </html>
