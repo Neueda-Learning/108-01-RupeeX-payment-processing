@@ -19,7 +19,7 @@ export default function Page() {
         </p>
       </header>
 
-      <BotChat />
+      <BotChat variant="fullscreen" />
     </div>
   );
 }
