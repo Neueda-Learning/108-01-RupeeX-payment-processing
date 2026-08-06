@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { Account, CreatePaymentInput, ExchangeRateResult, Payment } from "@/lib/types";
 import { convertCurrency, createPayment, getAccounts, sendOtp, verifyOtp } from "@/lib/api";
+import { useUserStore } from "@/lib/user-store";
 
 // Countries are now auto-fetched from source and destination accounts,
 // so COUNTRIES list is no longer needed
@@ -60,6 +61,11 @@ export function PaymentCreateForm({
   // user isn't blocked from entering a code and retrying.
   const [otpDeliveryWarning, setOtpDeliveryWarning] = useState<string | null>(null);
 
+  // Bumped whenever a new account/user is created elsewhere (e.g. the "Add
+  // User" modal) so this list re-fetches and the new account is selectable
+  // without a manual page refresh.
+  const accountsVersion = useUserStore((s) => s.accountsVersion);
+
   useEffect(() => {
     getAccounts()
       .then((accs) => {
@@ -75,7 +81,7 @@ export function PaymentCreateForm({
       .catch(() => {
         /* non-critical */
       });
-  }, [defaultSourceAccount]);
+  }, [defaultSourceAccount, accountsVersion]);
 
   // Fetch a live conversion preview whenever the amount, payment currency, or
   // destination account (whose native currency may differ) changes.
