@@ -23,7 +23,6 @@ public class CreateCustomerRequest {
 
     private String externalRef;
 
-    @NotBlank(message = "Account number is required")
     private String accountNumber;
 
     @NotBlank(message = "Account type is required")

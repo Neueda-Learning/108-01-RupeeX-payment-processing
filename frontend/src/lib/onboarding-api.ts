@@ -40,7 +40,6 @@ export interface CreateUserInput {
   email: string;
   phone: string;
   dob?: string;
-  accountNumber: string;
   accountType: string;
   currency: string;
   countryCode?: string;
@@ -66,7 +65,6 @@ export async function createAndApproveUser(input: CreateUserInput): Promise<Onbo
       email: input.email,
       phone: input.phone,
       dob: input.dob || null,
-      accountNumber: input.accountNumber,
       accountType: input.accountType,
       currency: input.currency,
       countryCode: input.countryCode || null,

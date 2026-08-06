@@ -22,7 +22,6 @@ export function AddUserModal({ open, onClose }: AddUserModalProps) {
     email: "",
     phone: "",
     dob: "",
-    accountNumber: "",
     accountType: "SAVINGS",
     currency: "INR",
     countryCode: "IN",
@@ -48,7 +47,7 @@ export function AddUserModal({ open, onClose }: AddUserModalProps) {
         name: form.fullName,
         email: form.email,
         phone: form.phone,
-        accountNumber: form.accountNumber,
+        accountNumber: customer.accountNumber,
         role: form.role,
       });
       onClose();
@@ -57,7 +56,6 @@ export function AddUserModal({ open, onClose }: AddUserModalProps) {
         email: "",
         phone: "",
         dob: "",
-        accountNumber: "",
         accountType: "SAVINGS",
         currency: "INR",
         countryCode: "IN",
@@ -122,10 +120,11 @@ export function AddUserModal({ open, onClose }: AddUserModalProps) {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
-                <label className="block text-xs font-medium text-slate-600">Account Number *</label>
-                <input name="accountNumber" value={form.accountNumber} onChange={handleChange} required
-                  placeholder="e.g. SB001234"
-                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-orange-400 focus:outline-none" />
+                <label className="block text-xs font-medium text-slate-600">Account Number</label>
+                <div className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-400 cursor-not-allowed select-none tracking-widest">
+                  RUPX••••••
+                </div>
+                <p className="mt-1 text-xs text-slate-400">Auto-generated on account creation</p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600">Account Type *</label>
