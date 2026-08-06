@@ -33,6 +33,7 @@ public class PaymentOrchestrationService {
     private final AuditEngineService auditEngineService;
     private final NotificationEngineService notificationEngineService;
     private final SystemEventService systemEventService;
+    private final TransactionLogService transactionLogService;
 
     public PaymentOrchestrationService(PaymentRepository paymentRepository,
                                                  PaymentHistoryRepository paymentHistoryRepository,
@@ -46,7 +47,8 @@ public class PaymentOrchestrationService {
                                                  RiskScoringEngineService riskScoringEngineService,
                                                  AuditEngineService auditEngineService,
                                                  NotificationEngineService notificationEngineService,
-                                                 SystemEventService systemEventService) {
+                                                 SystemEventService systemEventService,
+                                                 TransactionLogService transactionLogService) {
         this.paymentRepository = paymentRepository;
         this.paymentHistoryRepository = paymentHistoryRepository;
         this.fraudResultRepository = fraudResultRepository;
@@ -60,6 +62,7 @@ public class PaymentOrchestrationService {
         this.auditEngineService = auditEngineService;
         this.notificationEngineService = notificationEngineService;
         this.systemEventService = systemEventService;
+        this.transactionLogService = transactionLogService;
     }
 
     @Transactional
@@ -96,6 +99,7 @@ public class PaymentOrchestrationService {
         payment.setScheduledAt(request.getScheduledAt());
         payment = paymentRepository.save(payment);
         auditEngineService.record(payment.getId(), "PaymentEngine", "Payment Created", null, PaymentStatus.CREATED, 0L, null);
+        transactionLogService.log(payment, "PaymentEngine", "Payment Created", null, PaymentStatus.CREATED, null);
 
         if (request.getScheduledAt() != null && request.getScheduledAt().isAfter(DateTimeUtil.nowIst())) {
             transition(payment, PaymentStatus.SCHEDULED, "PaymentEngine", "Payment Scheduled",
@@ -145,6 +149,7 @@ public class PaymentOrchestrationService {
             payment.setStatus(PaymentStatus.FAILED);
             paymentRepository.save(payment);
             auditEngineService.record(payment.getId(), "RiskEngine", "Payment Auto-Rejected", PaymentStatus.FRAUD_CHECKED, PaymentStatus.FAILED, 0L, "Risk score > 100");
+            transactionLogService.log(payment, "RiskEngine", "Payment Auto-Rejected", PaymentStatus.FRAUD_CHECKED, PaymentStatus.FAILED, triggeredRules);
             notificationEngineService.notifyPaymentEvent(payment.getId(), "PAYMENT_AUTO_REJECTED", triggeredRules);
         } else if (riskScore.getScore() >= 80 && riskScore.getScore() <= 100) {
             // Require admin approval for scores 80-100
@@ -252,6 +257,7 @@ public class PaymentOrchestrationService {
         paymentHistoryRepository.save(history);
         
         auditEngineService.record(payment.getId(), "AdminReview", "Admin Declined", PaymentStatus.PENDING_ADMIN_APPROVAL, PaymentStatus.DECLINED, 0L, reason);
+        transactionLogService.log(payment, "AdminReview", "Admin Declined", PaymentStatus.PENDING_ADMIN_APPROVAL, PaymentStatus.DECLINED, reason);
         notificationEngineService.notifyPaymentEvent(id, "PAYMENT_ADMIN_DECLINED", reason);
         
         return toResponse(payment);
@@ -288,6 +294,7 @@ public class PaymentOrchestrationService {
         paymentHistoryRepository.save(history);
 
         auditEngineService.record(payment.getId(), service, action, before, target, 0L, reason);
+        transactionLogService.log(payment, service, action, before, target, reason);
         systemEventService.emit(action.toUpperCase().replace(' ', '_'), payment.getId(), reason);
     }
 

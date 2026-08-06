@@ -9,6 +9,7 @@ import com.rupeex.main.enums.PaymentStatus;
 import com.rupeex.main.enums.VerificationStatus;
 import com.rupeex.main.exception.InvalidPaymentException;
 import com.rupeex.main.exception.PaymentNotFoundException;
+import com.rupeex.main.platform.service.TransactionLogService;
 import com.rupeex.main.repository.PaymentRepository;
 import com.rupeex.main.repository.PaymentVerificationRepository;
 import com.rupeex.main.service.IdempotencyService;
@@ -51,6 +52,9 @@ class PaymentServiceImplTest {
     @Mock
     private VerificationNotificationService verificationNotificationService;
 
+    @Mock
+    private TransactionLogService transactionLogService;
+
     private PaymentServiceImpl paymentService;
 
     @BeforeEach
@@ -60,7 +64,8 @@ class PaymentServiceImplTest {
                 validationService,
                 idempotencyService,
                 paymentVerificationRepository,
-                verificationNotificationService
+                verificationNotificationService,
+                transactionLogService
         );
     }
 

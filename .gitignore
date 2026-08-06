@@ -34,3 +34,8 @@ build/
 
 # Local env file (do not commit)
 .env
+
+# Transaction/application log files written at runtime
+logs/
+backend/logs/
+*.log

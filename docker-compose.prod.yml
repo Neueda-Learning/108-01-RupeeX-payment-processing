@@ -6,6 +6,8 @@ services:
       - .env
     environment:
       OTP_FALLBACK_ENABLED: ${OTP_FALLBACK_ENABLED:-false}
+    volumes:
+      - ./backend/logs:/app/logs
     ports:
       # Bound to localhost only: not exposed to the internet. Use an SSH
       # tunnel for direct debugging; public traffic goes through nginx.
