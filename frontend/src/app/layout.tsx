@@ -33,11 +33,15 @@ export default function RootLayout({
       lang="en"
       className={`${displaySans.variable} ${plexMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col text-slate-900 dark:text-slate-100 dark:bg-slate-950">
+      <body className="min-h-full bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
         <ThemeProvider>
-          <Sidebar />
-          <main className="flex-1 md:ml-64">{children}</main>
-          <Footer />
+          <div className="flex min-h-screen">
+            <Sidebar />
+            <div className="flex flex-1 flex-col md:ml-64">
+              <main className="flex-1">{children}</main>
+              <Footer />
+            </div>
+          </div>
           <BotChatWidget />
         </ThemeProvider>
       </body>

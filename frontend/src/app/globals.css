@@ -5,6 +5,7 @@
   --font-mono: var(--font-plex-mono);
 }
 
+/* Light mode background */
 body {
   font-family: var(--font-sans), "Segoe UI", sans-serif;
   background:
@@ -19,25 +20,29 @@ body {
       transparent 42%
     ),
     linear-gradient(180deg, #fffdfa 0%, #f6f8fd 45%, #f3f5f9 100%);
+  color: rgb(15 23 42);
 }
 
-body.dark {
+/* Dark mode background - proper dark theme */
+html.dark body {
   background:
     radial-gradient(
       circle at 10% 10%,
-      rgba(255, 180, 80, 0.1),
-      transparent 35%
+      rgba(234, 88, 12, 0.15),
+      transparent 40%
     ),
     radial-gradient(
-      circle at 90% 0%,
-      rgba(40, 120, 255, 0.08),
-      transparent 42%
+      circle at 90% 10%,
+      rgba(59, 130, 246, 0.12),
+      transparent 45%
     ),
-    linear-gradient(180deg, #0f172a 0%, #1a1f35 45%, #111827 100%);
+    linear-gradient(180deg, #020617 0%, #0f172a 50%, #1e293b 100%);
+  color: rgb(248 250 252);
 }
 
 html.dark {
   color-scheme: dark;
+  background: #020617;
 }
 
 ::selection {
@@ -45,7 +50,7 @@ html.dark {
 }
 
 .dark ::selection {
-  background: rgba(246, 137, 48, 0.4);
+  background: rgba(249, 115, 22, 0.5);
 }
 
 .panel {
@@ -55,10 +60,10 @@ html.dark {
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
 }
 
-.dark .panel {
-  border: 1px solid rgba(148, 163, 184, 0.15);
-  background: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(6px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+html.dark .panel {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
 }
 
