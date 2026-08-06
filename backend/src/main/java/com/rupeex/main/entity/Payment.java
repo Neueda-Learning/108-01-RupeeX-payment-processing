@@ -390,6 +390,23 @@ public class Payment {
 
 
 
+    public void setScheduledAt(LocalDateTime scheduledAt){
+
+        this.scheduledAt = scheduledAt;
+
+    }
+
+
+
+    public void setOriginCountry(String originCountry){
+
+        this.originCountry = originCountry;
+
+    }
+
+
+
+
     /*
        Business methods
        Used during payment processing

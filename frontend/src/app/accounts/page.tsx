@@ -192,6 +192,17 @@ export default function AccountsPage() {
     (a) => a.accountNumber !== selected?.accountNumber,
   );
 
+  // Handle destination account selection - auto-fetch destination country
+  const handleDestinationAccountSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const accountNumber = e.target.value;
+    const destAccount = accounts.find(a => a.accountNumber === accountNumber);
+    setSendForm((f) => ({
+      ...f,
+      destinationAccount: accountNumber,
+      destinationCountry: destAccount?.countryCode ?? "IN",
+    }));
+  };
+
   // Members can only view/send from their own account
   const visibleAccounts = useMemo(
     () =>
@@ -430,12 +441,7 @@ export default function AccountsPage() {
                   <select
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2"
                     value={sendForm.destinationAccount}
-                    onChange={(e) =>
-                      setSendForm((f) => ({
-                        ...f,
-                        destinationAccount: e.target.value,
-                      }))
-                    }
+                    onChange={handleDestinationAccountSelect}
                     required
                   >
                     <option value="">Select destination…</option>
@@ -486,34 +492,6 @@ export default function AccountsPage() {
                   </select>
                 </label>
 
-                <label className="text-sm">
-                  <span className="mb-1 block font-medium text-slate-700">
-                    Destination country
-                  </span>
-                  <select
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2"
-                    value={sendForm.destinationCountry}
-                    onChange={(e) =>
-                      setSendForm((f) => ({
-                        ...f,
-                        destinationCountry: e.target.value,
-                      }))
-                    }
-                  >
-                    {[
-                      ["IN", "India"],
-                      ["US", "United States"],
-                      ["GB", "United Kingdom"],
-                      ["SG", "Singapore"],
-                      ["AE", "UAE"],
-                      ["EU", "Europe"],
-                    ].map(([code, name]) => (
-                      <option key={code} value={code}>
-                        {name} ({code})
-                      </option>
-                    ))}
-                  </select>
-                </label>
 
                 <div className="sm:col-span-2 flex gap-3">
                   <button
