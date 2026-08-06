@@ -130,3 +130,30 @@ export async function isSlmAvailable(): Promise<boolean> {
     return false;
   }
 }
+
+export async function generateChatResponse(text: string): Promise<string | null> {
+  try {
+    const contextChunks = await retrieveContext(text);
+    const systemPrompt = `You are a helpful, conversational assistant for RupeeX, a payment processing system. Keep your answers concise, natural, and friendly. Do not use markdown formatting.
+    
+Relevant domain context:
+${contextChunks.map((c) => `- ${c}`).join('\\n')}`;
+
+    const resp = await axios.post(
+      `${SLM_BASE_URL}/api/generate`,
+      {
+        model: SLM_MODEL,
+        system: systemPrompt,
+        prompt: text,
+        stream: false,
+        options: { temperature: 0.7 },
+      },
+      { timeout: SLM_TIMEOUT_MS }
+    );
+
+    return resp.data?.response ?? null;
+  } catch (err: any) {
+    console.warn('[slm] chat generation failed:', err.message || err);
+    return null;
+  }
+}

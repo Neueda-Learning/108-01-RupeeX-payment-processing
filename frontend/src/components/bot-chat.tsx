@@ -232,6 +232,10 @@ export default function BotChat({
       const intent: BotCommand | undefined = json.intent;
 
       if (!intent || intent.type === "unknown") {
+        if (json.reply) {
+          addBotText(json.reply);
+          return;
+        }
         addBotText(
           "I didn't quite catch that — try one of the suggestions below, or phrase it like \"Send 5000 INR to ACC-10002\"."
         );
