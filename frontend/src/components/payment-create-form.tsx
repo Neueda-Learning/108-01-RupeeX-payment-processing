@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { Account, CreatePaymentInput, ExchangeRateResult, Payment } from "@/lib/types";
 import { convertCurrency, createPayment, getAccounts, sendOtp, verifyOtp } from "@/lib/api";
-import { useToast } from "./toast-provider";
+import { useUserStore } from "@/lib/user-store";
 
 // Countries are now auto-fetched from source and destination accounts,
 // so COUNTRIES list is no longer needed
@@ -28,7 +28,6 @@ export function PaymentCreateForm({
   onCreated: (payment: Payment) => void;
   defaultSourceAccount?: string;
 }) {
-  const toast = useToast();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [form, setForm] = useState<CreatePaymentInput>({
     amount: 1000,
@@ -62,6 +61,11 @@ export function PaymentCreateForm({
   // user isn't blocked from entering a code and retrying.
   const [otpDeliveryWarning, setOtpDeliveryWarning] = useState<string | null>(null);
 
+  // Bumped whenever a new account/user is created elsewhere (e.g. the "Add
+  // User" modal) so this list re-fetches and the new account is selectable
+  // without a manual page refresh.
+  const accountsVersion = useUserStore((s) => s.accountsVersion);
+
   useEffect(() => {
     getAccounts()
       .then((accs) => {
@@ -77,7 +81,7 @@ export function PaymentCreateForm({
       .catch(() => {
         /* non-critical */
       });
-  }, [defaultSourceAccount]);
+  }, [defaultSourceAccount, accountsVersion]);
 
   // Fetch a live conversion preview whenever the amount, payment currency, or
   // destination account (whose native currency may differ) changes.
@@ -200,73 +204,39 @@ export function PaymentCreateForm({
     }
   };
 
-   // Step 2 – verify OTP, then create payment
-   const handleOtpVerify = async () => {
-     if (otpValue.length !== 4) {
-       setOtpError("Please enter the 4-digit OTP.");
-       return;
-     }
-     setOtpError(null);
-     setIsVerifying(true);
-     try {
-       const result = await verifyOtp(form.payerEmail!, otpValue);
-       if (!result.valid) {
-         setOtpError(result.message ?? "Invalid or expired OTP. Try again.");
-         return;
-       }
-       const created = await createPayment({
-         ...form,
-         ...(isScheduled && scheduledAt ? { scheduledAt: `${scheduledAt}:00` } : {}),
-       });
-
-       // Show appropriate toast based on payment status
-       if (created.status === "QUEUED") {
-         toast.success(
-           "Payment Successful! ✅",
-           `Payment ${created.reference || `#${created.id}`} has been queued for processing.`
-         );
-       } else if (created.status === "SENT" || created.status === "SETTLED") {
-         toast.success(
-           "Payment Confirmed! ✅",
-           `Payment ${created.reference || `#${created.id}`} has been sent successfully.`
-         );
-       } else if (created.status === "PENDING_REVIEW") {
-         toast.warning(
-           "Admin Approval Needed ⏳",
-           `Payment ${created.reference || `#${created.id}`} is awaiting admin approval.`
-         );
-       } else if (created.status === "FAILED") {
-         toast.error(
-           "Payment Failed ❌",
-           `Payment ${created.reference || `#${created.id}`} failed: ${created.errorMessage || "Please try again."}`
-         );
-       } else {
-         toast.info(
-           "Payment Created",
-           `Payment ${created.reference || `#${created.id}`} is being processed.`
-         );
-       }
-
-       onCreated(created);
-       // Reset form
-       setForm((f) => ({ ...f, amount: 1000, destinationAccount: "", payerEmail: "" }));
-       setIsScheduled(false);
-       setScheduledAt("");
-       setStep("form");
-       setOtpValue("");
-       setMaskedEmail("");
-       setOtpDeliveryWarning(null);
-     } catch (err) {
-       const errorMsg = err instanceof Error ? err.message : "Unable to complete payment";
-       setOtpError(errorMsg);
-       toast.error(
-         "Payment Failed ❌",
-         errorMsg
-       );
-     } finally {
-       setIsVerifying(false);
-     }
-   };
+  // Step 2 – verify OTP, then create payment
+  const handleOtpVerify = async () => {
+    if (otpValue.length !== 4) {
+      setOtpError("Please enter the 4-digit OTP.");
+      return;
+    }
+    setOtpError(null);
+    setIsVerifying(true);
+    try {
+      const result = await verifyOtp(form.payerEmail!, otpValue);
+      if (!result.valid) {
+        setOtpError(result.message ?? "Invalid or expired OTP. Try again.");
+        return;
+      }
+      const created = await createPayment({
+        ...form,
+        ...(isScheduled && scheduledAt ? { scheduledAt: `${scheduledAt}:00` } : {}),
+      });
+      onCreated(created);
+      // Reset form
+      setForm((f) => ({ ...f, amount: 1000, destinationAccount: "", payerEmail: "" }));
+      setIsScheduled(false);
+      setScheduledAt("");
+      setStep("form");
+      setOtpValue("");
+      setMaskedEmail("");
+      setOtpDeliveryWarning(null);
+    } catch (err) {
+      setOtpError(err instanceof Error ? err.message : "Unable to complete payment");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
   const sourceAcc = accounts.find(
     (a) => a.accountNumber === form.sourceAccount,

@@ -41,7 +41,7 @@ export default function AccountsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { currentUser, mergeUsers } = useUserStore();
+  const { currentUser, mergeUsers, accountsVersion } = useUserStore();
   const isAdmin = !currentUser || currentUser.role === "admin";
 
   // Send payment form state
@@ -64,9 +64,11 @@ export default function AccountsPage() {
   const [sendVerifying, setSendVerifying] = useState(false);
   const [sendMaskedEmail, setSendMaskedEmail] = useState("");
 
-  // One-time data load on mount. Account selection is derived below (not
-  // stored/synced via an effect) so it always reflects the latest user/
-  // account-list state without needing a page refresh after a user switch.
+  // Data load on mount, and again whenever `accountsVersion` is bumped (a
+  // new account/user was just created elsewhere, e.g. via the "Add User"
+  // modal) so the newly created account shows up here without a manual page
+  // refresh. Account selection itself is derived below (not stored/synced
+  // via an effect) so it always reflects the latest user/account-list state.
   useEffect(() => {
     let cancelled = false;
     Promise.all([getAccounts(), getPayments(), listOnboardingUsers()])
@@ -100,7 +102,7 @@ export default function AccountsPage() {
       cancelled = true;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [accountsVersion]);
 
   // Derived (not stateful) selection: members always see their own account;
   // admins see whatever they last picked from the dropdown, falling back to
