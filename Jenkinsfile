@@ -18,6 +18,34 @@ pipeline {
         }
 
 
+        stage('Backend Tests') {
+            steps {
+                dir('backend') {
+                    sh './mvnw --batch-mode --no-transfer-progress test'
+                }
+            }
+            post {
+                always {
+                    junit testResults: 'backend/target/surefire-reports/*.xml', allowEmptyResults: true
+                }
+            }
+        }
+
+
+        stage('Onboarding Service Tests') {
+            steps {
+                dir('onboarding-service') {
+                    sh 'mvn --batch-mode --no-transfer-progress test'
+                }
+            }
+            post {
+                always {
+                    junit testResults: 'onboarding-service/target/surefire-reports/*.xml', allowEmptyResults: true
+                }
+            }
+        }
+
+
         stage('Create Environment File') {
             steps {
                 withCredentials([
