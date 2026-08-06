@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ApiError,
   cancelPayment,
   getPaymentById,
   getPaymentHistory,
@@ -12,6 +13,9 @@ import {
 import type { Payment, PaymentStatusHistoryEntry } from "@/lib/types";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
+
+/** How often to silently re-poll an in-flight payment, in ms. */
+const POLL_INTERVAL_MS = 5000;
 
 /** Ordered pipeline steps every payment moves through */
 const PIPELINE: { status: string; label: string; description: string }[] = [
@@ -57,32 +61,51 @@ const PIPELINE: { status: string; label: string; description: string }[] = [
   },
 ];
 
-const TERMINAL_FAILED: { status: string; label: string; description: string } =
-  {
-    status: "FAILED",
+// Statuses that map onto the final "Settled" pipeline step. The legacy
+// /legacy/payments API completes payments straight to COMPLETED (and older
+// data may use SUCCESS), while the real orchestration pipeline ends at
+// SETTLED - all three mean the same thing for display purposes.
+const SETTLED_ALIASES = new Set(["SETTLED", "COMPLETED", "SUCCESS"]);
+
+/** Any status a payment will never move on from. */
+const TERMINAL_STATUSES = new Set([
+  ...SETTLED_ALIASES,
+  "FAILED",
+  "CANCELLED",
+  "DECLINED",
+]);
+
+/** Terminal states rendered as a distinct (non-success) card at the end of the pipeline. */
+const TERMINAL_INFO: Record<string, { label: string; description: string }> = {
+  FAILED: {
     label: "Failed",
     description: "Payment could not be completed",
-  };
-const TERMINAL_CANCELLED: {
-  status: string;
-  label: string;
-  description: string;
-} = {
-  status: "CANCELLED",
-  label: "Cancelled",
-  description: "Payment was cancelled before settlement",
+  },
+  CANCELLED: {
+    label: "Cancelled",
+    description: "Payment was cancelled before settlement",
+  },
+  DECLINED: {
+    label: "Declined",
+    description: "Payment was declined by an administrator",
+  },
 };
+
+function normalizeForPipeline(status: string): string {
+  return SETTLED_ALIASES.has(status) ? "SETTLED" : status;
+}
 
 function getStepState(
   stepStatus: string,
   currentStatus: string,
   reachedStatuses: Set<string>,
 ): "done" | "current" | "pending" | "skipped" {
+  const normalizedCurrent = normalizeForPipeline(currentStatus);
   if (reachedStatuses.has(stepStatus)) return "done";
-  if (stepStatus === currentStatus) return "current";
+  if (stepStatus === normalizedCurrent) return "current";
   const pipelineIdx = PIPELINE.findIndex((s) => s.status === stepStatus);
-  const currentIdx = PIPELINE.findIndex((s) => s.status === currentStatus);
-  if (pipelineIdx < currentIdx) return "done";
+  const currentIdx = PIPELINE.findIndex((s) => s.status === normalizedCurrent);
+  if (currentIdx !== -1 && pipelineIdx < currentIdx) return "done";
   return "pending";
 }
 
@@ -94,13 +117,35 @@ export default function PaymentDetailPage() {
   const [payment, setPayment] = useState<Payment | null>(null);
   const [history, setHistory] = useState<PaymentStatusHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [busyAction, setBusyAction] = useState<"retry" | "cancel" | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Reset the load state synchronously during render (not in an effect, per
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes)
+  // whenever the route's payment id changes, so a client-side navigation
+  // from one payment detail page to another doesn't briefly show the
+  // previous payment's data under the new id.
+  const [lastLoadedId, setLastLoadedId] = useState<number | null>(null);
+  if (hasValidId && paymentId !== lastLoadedId) {
+    setLastLoadedId(paymentId);
+    setLoading(true);
+    setNotFound(false);
+    setError(null);
+  }
+
+  const fetchPayment = useCallback(
+    () =>
+      Promise.all([getPaymentById(paymentId), getPaymentHistory(paymentId)]),
+    [paymentId],
+  );
+
+  // Initial load
   useEffect(() => {
     if (!hasValidId) return;
     let cancelled = false;
-    Promise.all([getPaymentById(paymentId), getPaymentHistory(paymentId)])
+    fetchPayment()
       .then(([paymentData, historyData]) => {
         if (!cancelled) {
           setPayment(paymentData);
@@ -108,8 +153,12 @@ export default function PaymentDetailPage() {
         }
       })
       .catch((e) => {
-        if (!cancelled)
+        if (cancelled) return;
+        if (e instanceof ApiError && e.status === 404) {
+          setNotFound(true);
+        } else {
           setError(e instanceof Error ? e.message : "Failed to load payment");
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -117,7 +166,41 @@ export default function PaymentDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [hasValidId, paymentId]);
+  }, [hasValidId, fetchPayment]);
+
+  // Auto-refresh while the payment is still moving through the pipeline, so
+  // the page reflects backend progress (fraud check, settlement, etc.)
+  // without the user needing to reload manually.
+  const status = payment?.status;
+  useEffect(() => {
+    if (!hasValidId || !status || TERMINAL_STATUSES.has(status)) return;
+    const interval = setInterval(() => {
+      fetchPayment()
+        .then(([paymentData, historyData]) => {
+          setPayment(paymentData);
+          setHistory(historyData);
+        })
+        .catch(() => {
+          // Silent: a transient poll failure shouldn't blank out a page
+          // that's already showing good data.
+        });
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [hasValidId, status, fetchPayment]);
+
+  const handleManualRefresh = async () => {
+    setError(null);
+    setRefreshing(true);
+    try {
+      const [paymentData, historyData] = await fetchPayment();
+      setPayment(paymentData);
+      setHistory(historyData);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to refresh payment");
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const runAction = async (action: "retry" | "cancel") => {
     setError(null);
@@ -138,13 +221,14 @@ export default function PaymentDetailPage() {
 
   // Build set of all statuses that were historically reached
   const reachedStatuses = useMemo(
-    () => new Set(history.map((h) => String(h.newStatus))),
+    () =>
+      new Set(history.map((h) => normalizeForPipeline(String(h.newStatus)))),
     [history],
   );
 
-  const isFailed = payment?.status === "FAILED";
-  const isCancelled = payment?.status === "CANCELLED";
-  const isTerminal = isFailed || isCancelled || payment?.status === "SETTLED";
+  const isTerminal = !!status && TERMINAL_STATUSES.has(status);
+  const canRetry = status === "FAILED";
+  const terminalInfo = status ? TERMINAL_INFO[status] : undefined;
 
   // Find the history entry for each pipeline step (for timestamps)
   const historyByStatus = useMemo(() => {
@@ -170,10 +254,22 @@ export default function PaymentDetailPage() {
       </div>
     );
 
-  if (!payment)
+  if (notFound)
     return (
       <div className="mx-auto max-w-5xl space-y-4 px-6 py-10 lg:px-8">
         <p className="text-sm text-red-600">Payment not found.</p>
+        <Link href="/payments" className="text-sm font-medium text-orange-700">
+          Back to payments
+        </Link>
+      </div>
+    );
+
+  if (!payment)
+    return (
+      <div className="mx-auto max-w-5xl space-y-4 px-6 py-10 lg:px-8">
+        <p className="text-sm text-red-600">
+          {error ?? "Failed to load payment."}
+        </p>
         <Link href="/payments" className="text-sm font-medium text-orange-700">
           Back to payments
         </Link>
@@ -203,8 +299,17 @@ export default function PaymentDetailPage() {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button
+            onClick={handleManualRefresh}
+            disabled={refreshing || busyAction !== null}
+            title="Refresh payment status"
+            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+          >
+            {refreshing ? "Refreshing…" : "Refresh"}
+          </button>
+          <button
             onClick={() => runAction("retry")}
-            disabled={busyAction !== null}
+            disabled={busyAction !== null || !canRetry}
+            title={canRetry ? undefined : "Only failed payments can be retried"}
             className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
           >
             {busyAction === "retry" ? "Retrying…" : "Retry"}
@@ -222,6 +327,13 @@ export default function PaymentDetailPage() {
       {error && (
         <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
+        </p>
+      )}
+
+      {!isTerminal && (
+        <p className="text-xs text-slate-400">
+          This page auto-refreshes every {POLL_INTERVAL_MS / 1000}s while the
+          payment is in progress.
         </p>
       )}
 
@@ -523,13 +635,12 @@ export default function PaymentDetailPage() {
             );
           })}
 
-          {/* Terminal: failed or cancelled */}
-          {(isFailed || isCancelled) &&
+          {/* Terminal: failed, cancelled, or declined */}
+          {terminalInfo &&
             (() => {
-              const terminal = isFailed ? TERMINAL_FAILED : TERMINAL_CANCELLED;
-              const histEntry = historyByStatus[terminal.status];
+              const histEntry = status ? historyByStatus[status] : undefined;
               return (
-                <li key={terminal.status} className="flex gap-4 mt-0">
+                <li key={status} className="flex gap-4 mt-0">
                   <div className="flex flex-col items-center">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-red-400 bg-red-400 text-white text-xs font-bold">
                       ✕
@@ -538,7 +649,7 @@ export default function PaymentDetailPage() {
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-sm font-semibold text-red-700">
-                        {terminal.label}
+                        {terminalInfo.label}
                       </span>
                       {histEntry && (
                         <span className="text-xs text-slate-400">
@@ -547,7 +658,7 @@ export default function PaymentDetailPage() {
                       )}
                     </div>
                     <p className="mt-0.5 text-xs text-slate-500">
-                      {terminal.description}
+                      {terminalInfo.description}
                     </p>
                     {payment.errorCode && (
                       <p className="mt-1 text-xs font-mono text-red-500">
