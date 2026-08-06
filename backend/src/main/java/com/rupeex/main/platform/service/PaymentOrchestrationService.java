@@ -4,11 +4,15 @@ import com.rupeex.main.entity.Payment;
 import com.rupeex.main.entity.PaymentHistory;
 import com.rupeex.main.entity.ProcessingQueueEntry;
 import com.rupeex.main.entity.RiskScore;
+import com.rupeex.main.entity.DeadLetterQueueEntry;
 import com.rupeex.main.enums.PaymentStatus;
 import com.rupeex.main.platform.dto.PaymentPlatformRequest;
 import com.rupeex.main.platform.dto.PaymentPlatformResponse;
 import com.rupeex.main.repository.*;
 import com.rupeex.main.util.DateTimeUtil;
+import com.rupeex.main.service.ExchangeRateService;
+import com.rupeex.main.dto.ExchangeRequest;
+import com.rupeex.main.dto.ExchangeResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -34,6 +38,7 @@ public class PaymentOrchestrationService {
     private final NotificationEngineService notificationEngineService;
     private final SystemEventService systemEventService;
     private final TransactionLogService transactionLogService;
+    private final ExchangeRateService exchangeRateService;
 
     public PaymentOrchestrationService(PaymentRepository paymentRepository,
                                                  PaymentHistoryRepository paymentHistoryRepository,
@@ -48,7 +53,8 @@ public class PaymentOrchestrationService {
                                                  AuditEngineService auditEngineService,
                                                  NotificationEngineService notificationEngineService,
                                                  SystemEventService systemEventService,
-                                                 TransactionLogService transactionLogService) {
+                                                 TransactionLogService transactionLogService,
+                                                 ExchangeRateService exchangeRateService) {
         this.paymentRepository = paymentRepository;
         this.paymentHistoryRepository = paymentHistoryRepository;
         this.fraudResultRepository = fraudResultRepository;
@@ -63,6 +69,7 @@ public class PaymentOrchestrationService {
         this.notificationEngineService = notificationEngineService;
         this.systemEventService = systemEventService;
         this.transactionLogService = transactionLogService;
+        this.exchangeRateService = exchangeRateService;
     }
 
     @Transactional
@@ -87,8 +94,24 @@ public class PaymentOrchestrationService {
         }
 
         Payment payment = new Payment();
-        payment.setAmount(request.getAmount());
-        payment.setCurrency(request.getCurrency());
+        
+        if (!"INR".equalsIgnoreCase(request.getCurrency())) {
+            ExchangeRequest exchangeRequest = new ExchangeRequest();
+            exchangeRequest.setAmount(request.getAmount());
+            exchangeRequest.setFromCurrency(request.getCurrency());
+            exchangeRequest.setToCurrency("INR");
+            
+            ExchangeResponse exchangeResponse = exchangeRateService.convert(exchangeRequest);
+            
+            payment.setAmount(exchangeResponse.getConvertedAmount());
+            payment.setCurrency("INR");
+            payment.setSourceCurrency(request.getCurrency());
+            payment.setConvertedAmount(exchangeResponse.getConvertedAmount());
+            payment.setExchangeRate(exchangeResponse.getExchangeRate());
+        } else {
+            payment.setAmount(request.getAmount());
+            payment.setCurrency(request.getCurrency());
+        }
         payment.setSourceAccount(request.getSourceAccount());
         payment.setDestinationAccount(request.getDestinationAccount());
         payment.setIdempotencyKey(request.getIdempotencyKey());
@@ -148,6 +171,13 @@ public class PaymentOrchestrationService {
             payment.markAsFailed("RISK_SCORE_TOO_HIGH", triggeredRules);
             payment.setStatus(PaymentStatus.FAILED);
             paymentRepository.save(payment);
+            
+            DeadLetterQueueEntry dlq = new DeadLetterQueueEntry();
+            dlq.setPaymentId(payment.getId());
+            dlq.setReason("Risk score > 100: " + triggeredRules);
+            dlq.setLastRetryCount(0);
+            deadLetterQueueRepository.save(dlq);
+            
             auditEngineService.record(payment.getId(), "RiskEngine", "Payment Auto-Rejected", PaymentStatus.FRAUD_CHECKED, PaymentStatus.FAILED, 0L, "Risk score > 100");
             transactionLogService.log(payment, "RiskEngine", "Payment Auto-Rejected", PaymentStatus.FRAUD_CHECKED, PaymentStatus.FAILED, triggeredRules);
             notificationEngineService.notifyPaymentEvent(payment.getId(), "PAYMENT_AUTO_REJECTED", triggeredRules);
@@ -313,6 +343,10 @@ public class PaymentOrchestrationService {
         response.setPayerEmail(payment.getPayerEmail());
         response.setRiskScore(riskScoreRepository.findByPaymentId(payment.getId()).orElse(null));
         response.setFraudResults(fraudResultRepository.findByPaymentId(payment.getId()));
+        response.setSourceCurrency(payment.getSourceCurrency());
+        response.setDestinationCurrency(payment.getDestinationCurrency());
+        response.setConvertedAmount(payment.getConvertedAmount());
+        response.setExchangeRate(payment.getExchangeRate());
         return response;
     }
 }

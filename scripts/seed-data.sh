@@ -61,20 +61,22 @@ echo ""
 
 # Step 1: Truncate all existing tables (disable foreign key checks temporarily)
 echo "Step 1/4: Emptying all existing tables..."
-run_mysql_query "SET FOREIGN_KEY_CHECKS=0;"
-run_mysql_query "TRUNCATE TABLE fraud_results;"
-run_mysql_query "TRUNCATE TABLE risk_scores;"
-run_mysql_query "TRUNCATE TABLE dead_letter_queue;"
-run_mysql_query "TRUNCATE TABLE processing_queue;"
-run_mysql_query "TRUNCATE TABLE payment_history;"
-run_mysql_query "TRUNCATE TABLE audit_logs;"
-run_mysql_query "TRUNCATE TABLE system_events;"
-run_mysql_query "TRUNCATE TABLE notifications;"
-run_mysql_query "TRUNCATE TABLE payment_metrics;"
-run_mysql_query "TRUNCATE TABLE payments;"
-run_mysql_query "TRUNCATE TABLE fraud_rules;"
-run_mysql_query "TRUNCATE TABLE accounts;"
-run_mysql_query "SET FOREIGN_KEY_CHECKS=1;"
+run_mysql_query "
+SET FOREIGN_KEY_CHECKS=0;
+TRUNCATE TABLE fraud_results;
+TRUNCATE TABLE risk_scores;
+TRUNCATE TABLE dead_letter_queue;
+TRUNCATE TABLE processing_queue;
+TRUNCATE TABLE payment_history;
+TRUNCATE TABLE audit_logs;
+TRUNCATE TABLE system_events;
+TRUNCATE TABLE notifications;
+TRUNCATE TABLE payment_metrics;
+TRUNCATE TABLE payments;
+TRUNCATE TABLE fraud_rules;
+TRUNCATE TABLE accounts;
+SET FOREIGN_KEY_CHECKS=1;
+"
 echo "✅ All tables emptied successfully."
 echo ""
 

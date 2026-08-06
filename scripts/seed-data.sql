@@ -66,7 +66,7 @@ VALUES
   ('ACC-10001', 'Aarav Mehta',        'SAVINGS',  'INR', 'IN', 125000.00, 'ACTIVE', 'aarav.mehta@rupeex.seedaccount', NOW(), NOW()),
   ('ACC-10002', 'Priya Sharma',       'CURRENT',  'INR', 'IN', 340000.00, 'ACTIVE', 'priya.sharma@rupeex.seedaccount', NOW(), NOW()),
   ('ACC-10003', 'Neo Retail Pvt Ltd', 'CURRENT',  'INR', 'IN', 870000.00, 'ACTIVE', 'neo.retail@rupeex.seedaccount', NOW(), NOW()),
-  ('ACC-10004', 'Zen Imports LLC',    'CURRENT',  'USD', 'US',  48000.00, 'ACTIVE', 'zen.imports@rupeex.seedaccount', NOW(), NOW()),
+  ('ACC-10004', 'Zen Imports LLC',    'CURRENT',  'INR', 'IN',  48000.00, 'ACTIVE', 'zen.imports@rupeex.seedaccount', NOW(), NOW()),
   ('ACC-10005', 'Lina Das',           'SAVINGS',  'INR', 'IN',  62500.00, 'ACTIVE', 'lina.das@rupeex.seedaccount', NOW(), NOW()),
   ('ACC-10006', 'Atlas Logistics',    'CURRENT',  'INR', 'IN', 215000.00, 'ACTIVE', 'atlas.logistics@rupeex.seedaccount', NOW(), NOW()),
   ('ACC-ADMIN-001', 'Platform Admin', 'CURRENT',  'INR', 'IN',       0.00, 'ACTIVE', 'admin@rupeex.seedaccount', NOW(), NOW());
@@ -83,7 +83,7 @@ VALUES
   (UNHEX(REPLACE(UUID(), '-', '')), 'SEED-CUST-1001', 'Aarav Mehta',        'aarav.mehta@rupeex.seedaccount',     '+91-9000000001', '1990-04-12', 'APPROVED',       'ACC-10001',     'SAVINGS', 'INR', 'IN', 'MEMBER', NOW(), NOW()),
   (UNHEX(REPLACE(UUID(), '-', '')), 'SEED-CUST-1002', 'Priya Sharma',       'priya.sharma@rupeex.seedaccount',    '+91-9000000002', '1988-11-02', 'APPROVED',       'ACC-10002',     'CURRENT', 'INR', 'IN', 'MEMBER', NOW(), NOW()),
   (UNHEX(REPLACE(UUID(), '-', '')), 'SEED-CUST-1003', 'Neo Retail Pvt Ltd', 'neo.retail@rupeex.seedaccount',      '+91-9000000003', '1979-01-15', 'APPROVED',       'ACC-10003',     'CURRENT', 'INR', 'IN', 'MEMBER', NOW(), NOW()),
-  (UNHEX(REPLACE(UUID(), '-', '')), 'SEED-CUST-1004', 'Zen Imports LLC',    'zen.imports@rupeex.seedaccount',     '+1-2025550004',  '1985-06-23', 'APPROVED',       'ACC-10004',     'CURRENT', 'USD', 'US', 'MEMBER', NOW(), NOW()),
+  (UNHEX(REPLACE(UUID(), '-', '')), 'SEED-CUST-1004', 'Zen Imports LLC',    'zen.imports@rupeex.seedaccount',     '+1-2025550004',  '1985-06-23', 'APPROVED',       'ACC-10004',     'CURRENT', 'INR', 'IN', 'MEMBER', NOW(), NOW()),
   (UNHEX(REPLACE(UUID(), '-', '')), 'SEED-CUST-1005', 'Lina Das',           'lina.das@rupeex.seedaccount',        '+91-9000000005', '1995-09-30', 'PENDING_REVIEW', 'ACC-10005',     'SAVINGS', 'INR', 'IN', 'MEMBER', NOW(), NOW()),
   (UNHEX(REPLACE(UUID(), '-', '')), 'SEED-CUST-1006', 'Atlas Logistics',    'atlas.logistics@rupeex.seedaccount', '+91-9000000006', '1982-03-08', 'APPROVED',       'ACC-10006',     'CURRENT', 'INR', 'IN', 'MEMBER', NOW(), NOW()),
   (UNHEX(REPLACE(UUID(), '-', '')), 'SEED-CUST-ADMIN','Platform Admin',     'admin@rupeex.seedaccount',           '+91-9000000000', '1990-01-01', 'APPROVED',       'ACC-ADMIN-001', 'CURRENT', 'INR', 'IN', 'ADMIN',  NOW(), NOW());
@@ -183,7 +183,7 @@ VALUES
   ('SEED-PAY-1001', 1500.00, 'INR', 'ACC-10001', 'ACC-10003', 'QUEUED', 'aarav.mehta@rupeex.seedaccount', NULL, NULL, 'seed-idem-1001', NOW(), NOW()),
   ('SEED-PAY-1002', 42000.00, 'INR', 'ACC-10002', 'ACC-10006', 'QUEUED', 'priya.sharma@rupeex.seedaccount', NULL, NULL, 'seed-idem-1002', NOW(), NOW()),
   ('SEED-PAY-1003', 980000.00, 'INR', 'ACC-10003', 'ACC-10005', 'PROCESSING', 'neo.retail@rupeex.seedaccount', NULL, NULL, 'seed-idem-1003', NOW(), NOW()),
-  ('SEED-PAY-1004', 15500.75, 'USD', 'ACC-10004', 'ACC-10002', 'PROCESSING', 'zen.imports@rupeex.seedaccount', NULL, NULL, 'seed-idem-1004', NOW(), NOW()),
+  ('SEED-PAY-1004', 15500.75, 'INR', 'ACC-10004', 'ACC-10002', 'PROCESSING', 'zen.imports@rupeex.seedaccount', NULL, NULL, 'seed-idem-1004', NOW(), NOW()),
   ('SEED-PAY-1005', 8750.00, 'INR', 'ACC-10005', 'ACC-10001', 'SENT', 'lina.das@rupeex.seedaccount', NULL, NULL, 'seed-idem-1005', NOW(), NOW()),
   ('SEED-PAY-1006', 2300.00, 'INR', 'ACC-10006', 'ACC-10002', 'FAILED', 'atlas.logistics@rupeex.seedaccount', 'RISK_BLOCKED', 'Blocked by risk policy', 'seed-idem-1006', NOW(), NOW());
 
