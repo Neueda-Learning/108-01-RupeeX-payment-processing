@@ -49,10 +49,11 @@ public class PaymentEmailTemplateBuilder {
      * Builds email template for failed payment
      */
     public String buildPaymentFailureTemplate(Payment payment, String accountHolderName, String failureReason) {
+        String displayReason = formatFailureReason(failureReason);
         return String.format(
                 "Dear %s,\n\n" +
                 "Your payment could not be completed.\n\n" +
-                "Failure Reason: %s (%s)\n\n" +
+                "Failure Reason: %s\n\n" +
                 "Payment Details:\n" +
                 "- Reference: %s\n" +
                 "- Amount: %s %s\n" +
@@ -65,8 +66,7 @@ public class PaymentEmailTemplateBuilder {
                 "Best regards,\n" +
                 "RupeeX Support Team",
                 accountHolderName,
-                payment.getErrorCode(),
-                failureReason,
+                displayReason,
                 payment.getPaymentReference(),
                 payment.getAmount(),
                 payment.getCurrency(),
@@ -140,6 +140,29 @@ public class PaymentEmailTemplateBuilder {
             case "PAYMENT_CANCELLED" -> "Payment Cancelled - Confirmation";
             default -> "RupeeX Payment Notification";
         };
+    }
+
+    /**
+     * Strips score contributions from a fraud rule explanation string and formats
+     * it for display in customer-facing emails.
+     *
+     * <p>Fraud rule explanations are built by {@code FraudDetectionEngineService} in the
+     * form {@code "Large Transaction Rule +30; Night Transaction Rule +10; "}.
+     * For non-fraud failures (e.g. "Insufficient funds in source account") the string
+     * contains no {@code +\d+} tokens and is returned trimmed and unchanged.</p>
+     *
+     * @param reason the raw {@code errorMessage} stored on the payment
+     * @return a clean, human-readable reason string
+     */
+    private String formatFailureReason(String reason) {
+        if (reason == null || reason.isBlank()) {
+            return "Payment could not be processed";
+        }
+        // Remove score contributions: " +30", " +10", etc.
+        String cleaned = reason.replaceAll("\\s*\\+\\d+", "");
+        // Remove trailing "; " separator left after score stripping
+        cleaned = cleaned.replaceAll(";\\s*$", "").trim();
+        return cleaned;
     }
 
     /**

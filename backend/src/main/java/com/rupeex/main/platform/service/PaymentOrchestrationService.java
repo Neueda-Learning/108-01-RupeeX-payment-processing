@@ -26,6 +26,7 @@ public class PaymentOrchestrationService {
     private final RiskScoreRepository riskScoreRepository;
     private final ProcessingQueueRepository processingQueueRepository;
     private final DeadLetterQueueRepository deadLetterQueueRepository;
+    private final AccountsRepository accountsRepository;
     private final PaymentStateMachine paymentStateMachine;
     private final FraudDetectionEngineService fraudDetectionEngineService;
     private final RiskScoringEngineService riskScoringEngineService;
@@ -39,6 +40,7 @@ public class PaymentOrchestrationService {
                                                  RiskScoreRepository riskScoreRepository,
                                                  ProcessingQueueRepository processingQueueRepository,
                                                  DeadLetterQueueRepository deadLetterQueueRepository,
+                                                 AccountsRepository accountsRepository,
                                                  PaymentStateMachine paymentStateMachine,
                                                  FraudDetectionEngineService fraudDetectionEngineService,
                                                  RiskScoringEngineService riskScoringEngineService,
@@ -51,6 +53,7 @@ public class PaymentOrchestrationService {
         this.riskScoreRepository = riskScoreRepository;
         this.processingQueueRepository = processingQueueRepository;
         this.deadLetterQueueRepository = deadLetterQueueRepository;
+        this.accountsRepository = accountsRepository;
         this.paymentStateMachine = paymentStateMachine;
         this.fraudDetectionEngineService = fraudDetectionEngineService;
         this.riskScoringEngineService = riskScoringEngineService;
@@ -65,6 +68,21 @@ public class PaymentOrchestrationService {
             throw new IllegalStateException("Duplicate idempotency key: " + existing.getId());
         });
 
+        // Fetch countries from accounts if not provided in request
+        String originCountry = request.getOriginCountry();
+        if (originCountry == null || originCountry.isBlank()) {
+            originCountry = accountsRepository.findByAccountNumber(request.getSourceAccount())
+                    .map(com.rupeex.main.entity.Account::getCountryCode)
+                    .orElse("");
+        }
+
+        String destinationCountry = request.getDestinationCountry();
+        if (destinationCountry == null || destinationCountry.isBlank()) {
+            destinationCountry = accountsRepository.findByAccountNumber(request.getDestinationAccount())
+                    .map(com.rupeex.main.entity.Account::getCountryCode)
+                    .orElse("");
+        }
+
         Payment payment = new Payment();
         payment.setAmount(request.getAmount());
         payment.setCurrency(request.getCurrency());
@@ -74,7 +92,7 @@ public class PaymentOrchestrationService {
         payment.setPaymentReference("EP-" + UUID.randomUUID());
         payment.setStatus(PaymentStatus.CREATED);
         payment.setPayerEmail(request.getPayerEmail());
-        payment.setOriginCountry(request.getOriginCountry());
+        payment.setOriginCountry(originCountry);
         payment.setScheduledAt(request.getScheduledAt());
         payment = paymentRepository.save(payment);
         auditEngineService.record(payment.getId(), "PaymentEngine", "Payment Created", null, PaymentStatus.CREATED, 0L, null);
@@ -88,7 +106,7 @@ public class PaymentOrchestrationService {
             return toResponse(payment);
         }
 
-        runFraudAndSettlementPipeline(payment, request.getOriginCountry());
+        runFraudAndSettlementPipeline(payment, originCountry);
         systemEventService.emit("PAYMENT_CREATED", payment.getId(), payment.getPaymentReference());
         return toResponse(payment);
     }
@@ -120,11 +138,14 @@ public class PaymentOrchestrationService {
         // Handle different risk score scenarios
         if (riskScore.getScore() > 100) {
             // Auto-reject payments with score > 100
-            payment.markAsFailed("RISK_SCORE_TOO_HIGH", "Payment automatically rejected due to risk score exceeding threshold (score: " + riskScore.getScore() + ")");
+            String triggeredRules = fraudEval.explanation() != null && !fraudEval.explanation().isBlank()
+                    ? fraudEval.explanation()
+                    : "Fraud rules exceeded risk threshold";
+            payment.markAsFailed("RISK_SCORE_TOO_HIGH", triggeredRules);
             payment.setStatus(PaymentStatus.FAILED);
             paymentRepository.save(payment);
             auditEngineService.record(payment.getId(), "RiskEngine", "Payment Auto-Rejected", PaymentStatus.FRAUD_CHECKED, PaymentStatus.FAILED, 0L, "Risk score > 100");
-            notificationEngineService.notifyPaymentEvent(payment.getId(), "PAYMENT_AUTO_REJECTED", "Risk score: " + riskScore.getScore());
+            notificationEngineService.notifyPaymentEvent(payment.getId(), "PAYMENT_AUTO_REJECTED", triggeredRules);
         } else if (riskScore.getScore() >= 80 && riskScore.getScore() <= 100) {
             // Require admin approval for scores 80-100
             transition(payment, PaymentStatus.PENDING_ADMIN_APPROVAL, "RiskEngine", "Admin Approval Required", "Risk score requires manual admin review (score: " + riskScore.getScore() + ")");

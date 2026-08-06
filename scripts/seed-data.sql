@@ -72,6 +72,32 @@ VALUES
   ('ACC-ADMIN-001', 'Platform Admin', 'CURRENT',  'INR', 'IN',       0.00, 'ACTIVE', 'admin@rupeex.seedaccount', NOW(), NOW());
 
 -- ============================================================================
+-- STEP 5b: SEED CUSTOMERS (onboarding-service) — one per seeded account
+-- ============================================================================
+-- customers.id is BINARY(16). UNHEX(REPLACE(UUID(), '-', '')) produces the
+-- same plain byte layout Hibernate's default UUID<->binary(16) mapping reads
+-- back (no MySQL UUID_TO_BIN byte-swapping), so these rows round-trip
+-- correctly through the onboarding-service JPA entity.
+INSERT INTO customers (id, external_ref, full_name, email, phone, dob, status, account_number, account_type, currency, country_code, role, created_at, updated_at)
+VALUES
+  (UNHEX(REPLACE(UUID(), '-', '')), 'SEED-CUST-1001', 'Aarav Mehta',        'aarav.mehta@rupeex.seedaccount',     '+91-9000000001', '1990-04-12', 'APPROVED',       'ACC-10001',     'SAVINGS', 'INR', 'IN', 'MEMBER', NOW(), NOW()),
+  (UNHEX(REPLACE(UUID(), '-', '')), 'SEED-CUST-1002', 'Priya Sharma',       'priya.sharma@rupeex.seedaccount',    '+91-9000000002', '1988-11-02', 'APPROVED',       'ACC-10002',     'CURRENT', 'INR', 'IN', 'MEMBER', NOW(), NOW()),
+  (UNHEX(REPLACE(UUID(), '-', '')), 'SEED-CUST-1003', 'Neo Retail Pvt Ltd', 'neo.retail@rupeex.seedaccount',      '+91-9000000003', '1979-01-15', 'APPROVED',       'ACC-10003',     'CURRENT', 'INR', 'IN', 'MEMBER', NOW(), NOW()),
+  (UNHEX(REPLACE(UUID(), '-', '')), 'SEED-CUST-1004', 'Zen Imports LLC',    'zen.imports@rupeex.seedaccount',     '+1-2025550004',  '1985-06-23', 'APPROVED',       'ACC-10004',     'CURRENT', 'USD', 'US', 'MEMBER', NOW(), NOW()),
+  (UNHEX(REPLACE(UUID(), '-', '')), 'SEED-CUST-1005', 'Lina Das',           'lina.das@rupeex.seedaccount',        '+91-9000000005', '1995-09-30', 'PENDING_REVIEW', 'ACC-10005',     'SAVINGS', 'INR', 'IN', 'MEMBER', NOW(), NOW()),
+  (UNHEX(REPLACE(UUID(), '-', '')), 'SEED-CUST-1006', 'Atlas Logistics',    'atlas.logistics@rupeex.seedaccount', '+91-9000000006', '1982-03-08', 'APPROVED',       'ACC-10006',     'CURRENT', 'INR', 'IN', 'MEMBER', NOW(), NOW()),
+  (UNHEX(REPLACE(UUID(), '-', '')), 'SEED-CUST-ADMIN','Platform Admin',     'admin@rupeex.seedaccount',           '+91-9000000000', '1990-01-01', 'APPROVED',       'ACC-ADMIN-001', 'CURRENT', 'INR', 'IN', 'ADMIN',  NOW(), NOW());
+
+-- ============================================================================
+-- STEP 5c: SEED CONSENTS — terms & privacy policy acceptance per customer
+-- ============================================================================
+INSERT INTO consents (customer_id, consent_type, consent_version, accepted, accepted_at, created_at)
+SELECT c.id, 'TERMS_AND_CONDITIONS', 'v1.0', TRUE, NOW(), NOW() FROM customers c;
+
+INSERT INTO consents (customer_id, consent_type, consent_version, accepted, accepted_at, created_at)
+SELECT c.id, 'PRIVACY_POLICY', 'v1.0', TRUE, NOW(), NOW() FROM customers c;
+
+-- ============================================================================
 -- STEP 6: FRAUD RULES CONFIGURATION - All 7 Rule Types with Proper Settings
 -- ============================================================================
 
@@ -200,5 +226,120 @@ FROM payments p WHERE p.payment_reference = 'SEED-PAY-1006';
 INSERT INTO risk_scores (payment_id, score, category, explanation, decision, created_at)
 SELECT p.id, 45, 'MEDIUM', 'Large amount flagged by fraud rules', 'REVIEW_PENDING', NOW()
 FROM payments p WHERE p.payment_reference = 'SEED-PAY-1003';
+
+-- ============================================================================
+-- STEP 8: FRAUD RESULTS — per-rule evaluation outcomes for flagged payments
+-- ============================================================================
+INSERT INTO fraud_results (payment_id, rule_id, rule_name, triggered, score_contribution, reason, created_at)
+SELECT p.id, fr.id, fr.name, TRUE, fr.score_contribution,
+       CONCAT('Amount ', p.amount, ' ', p.currency, ' exceeds threshold ', fr.threshold), NOW()
+FROM payments p, fraud_rules fr
+WHERE p.payment_reference = 'SEED-PAY-1002' AND fr.name = 'RULE-001: Large Transaction';
+
+INSERT INTO fraud_results (payment_id, rule_id, rule_name, triggered, score_contribution, reason, created_at)
+SELECT p.id, fr.id, fr.name, TRUE, fr.score_contribution,
+       CONCAT('Amount ', p.amount, ' ', p.currency, ' exceeds threshold ', fr.threshold), NOW()
+FROM payments p, fraud_rules fr
+WHERE p.payment_reference = 'SEED-PAY-1003' AND fr.name = 'RULE-001: Large Transaction';
+
+INSERT INTO fraud_results (payment_id, rule_id, rule_name, triggered, score_contribution, reason, created_at)
+SELECT p.id, fr.id, fr.name, TRUE, fr.score_contribution,
+       'Source account ACC-10003 was created within the last 30 days', NOW()
+FROM payments p, fraud_rules fr
+WHERE p.payment_reference = 'SEED-PAY-1003' AND fr.name = 'RULE-007: New Account';
+
+INSERT INTO fraud_results (payment_id, rule_id, rule_name, triggered, score_contribution, reason, created_at)
+SELECT p.id, fr.id, fr.name, TRUE, fr.score_contribution,
+       'Source account ACC-10006 has 3+ recent failed payment attempts', NOW()
+FROM payments p, fraud_rules fr
+WHERE p.payment_reference = 'SEED-PAY-1006' AND fr.name = 'RULE-004: Repeated Failed Attempts';
+
+-- ============================================================================
+-- STEP 9: NOTIFICATIONS — one delivery record per seeded payment event
+-- ============================================================================
+INSERT INTO notifications (payment_id, type, payload, created_at)
+SELECT p.id, 'PAYMENT_QUEUED', CONCAT('Payment ', p.payment_reference, ' queued for processing'), NOW()
+FROM payments p WHERE p.payment_reference IN ('SEED-PAY-1001', 'SEED-PAY-1002');
+
+INSERT INTO notifications (payment_id, type, payload, created_at)
+SELECT p.id, 'HIGH_RISK_PAYMENT', CONCAT('Payment ', p.payment_reference, ' flagged for manual review (risk score 45)'), NOW()
+FROM payments p WHERE p.payment_reference = 'SEED-PAY-1003';
+
+INSERT INTO notifications (payment_id, type, payload, created_at)
+SELECT p.id, 'PAYMENT_PROCESSING', CONCAT('Payment ', p.payment_reference, ' is being processed'), NOW()
+FROM payments p WHERE p.payment_reference = 'SEED-PAY-1004';
+
+INSERT INTO notifications (payment_id, type, payload, created_at)
+SELECT p.id, 'PAYMENT_COMPLETED', CONCAT('Payment ', p.payment_reference, ' completed successfully'), NOW()
+FROM payments p WHERE p.payment_reference = 'SEED-PAY-1005';
+
+INSERT INTO notifications (payment_id, type, payload, created_at)
+SELECT p.id, 'PAYMENT_FAILED', CONCAT('Payment ', p.payment_reference, ' failed: Blocked by risk policy'), NOW()
+FROM payments p WHERE p.payment_reference = 'SEED-PAY-1006';
+
+-- ============================================================================
+-- STEP 10: SYSTEM EVENTS — mirrors the WebSocket events emitted alongside notifications
+-- ============================================================================
+INSERT INTO system_events (event_type, entity_id, payload, created_at)
+SELECT 'PAYMENT_QUEUED', p.id, CONCAT('Payment ', p.payment_reference, ' queued for processing'), NOW()
+FROM payments p WHERE p.payment_reference IN ('SEED-PAY-1001', 'SEED-PAY-1002');
+
+INSERT INTO system_events (event_type, entity_id, payload, created_at)
+SELECT 'HIGH_RISK_PAYMENT', p.id, CONCAT('Payment ', p.payment_reference, ' flagged for manual review (risk score 45)'), NOW()
+FROM payments p WHERE p.payment_reference = 'SEED-PAY-1003';
+
+INSERT INTO system_events (event_type, entity_id, payload, created_at)
+SELECT 'PAYMENT_PROCESSING', p.id, CONCAT('Payment ', p.payment_reference, ' is being processed'), NOW()
+FROM payments p WHERE p.payment_reference = 'SEED-PAY-1004';
+
+INSERT INTO system_events (event_type, entity_id, payload, created_at)
+SELECT 'PAYMENT_COMPLETED', p.id, CONCAT('Payment ', p.payment_reference, ' completed successfully'), NOW()
+FROM payments p WHERE p.payment_reference = 'SEED-PAY-1005';
+
+INSERT INTO system_events (event_type, entity_id, payload, created_at)
+SELECT 'PAYMENT_FAILED', p.id, CONCAT('Payment ', p.payment_reference, ' failed: Blocked by risk policy'), NOW()
+FROM payments p WHERE p.payment_reference = 'SEED-PAY-1006';
+
+-- ============================================================================
+-- STEP 11: AUDIT LOGS — creation + latest-transition trail per seeded payment
+-- ============================================================================
+INSERT INTO audit_logs (payment_id, service, action, before_state, after_state, processing_time_ms, reason, created_at)
+SELECT p.id, 'PaymentEngine', 'Payment Created', NULL, 'CREATED', 0, NULL, NOW()
+FROM payments p WHERE p.payment_reference IN ('SEED-PAY-1001','SEED-PAY-1002','SEED-PAY-1003','SEED-PAY-1004','SEED-PAY-1005','SEED-PAY-1006');
+
+INSERT INTO audit_logs (payment_id, service, action, before_state, after_state, processing_time_ms, reason, created_at)
+SELECT p.id, 'PaymentEngine', 'Payment Queued', 'CREATED', 'QUEUED', 5, NULL, NOW()
+FROM payments p WHERE p.payment_reference IN ('SEED-PAY-1001', 'SEED-PAY-1002');
+
+INSERT INTO audit_logs (payment_id, service, action, before_state, after_state, processing_time_ms, reason, created_at)
+SELECT p.id, 'SettlementEngine', 'Processing Started', 'QUEUED', 'PROCESSING', 12, NULL, NOW()
+FROM payments p WHERE p.payment_reference IN ('SEED-PAY-1003', 'SEED-PAY-1004');
+
+INSERT INTO audit_logs (payment_id, service, action, before_state, after_state, processing_time_ms, reason, created_at)
+SELECT p.id, 'SettlementEngine', 'Payment Sent', 'PROCESSING', 'SENT', 18, 'Sent to external network', NOW()
+FROM payments p WHERE p.payment_reference = 'SEED-PAY-1005';
+
+INSERT INTO audit_logs (payment_id, service, action, before_state, after_state, processing_time_ms, reason, created_at)
+SELECT p.id, 'RiskEngine', 'Payment Auto-Rejected', 'FRAUD_CHECKED', 'FAILED', 8, 'Blocked by risk policy', NOW()
+FROM payments p WHERE p.payment_reference = 'SEED-PAY-1006';
+
+-- ============================================================================
+-- STEP 12: PAYMENT VERIFICATIONS — admin-review token for the pending payment
+-- ============================================================================
+INSERT INTO payment_verifications (payment_id, customer_id, verification_token, status, customer_email, created_at, updated_at)
+SELECT p.id, 'neo.retail@rupeex.seedaccount', 'SEED-VERIFY-TOKEN-1003', 'PENDING', 'neo.retail@rupeex.seedaccount', NOW(), NOW()
+FROM payments p WHERE p.payment_reference = 'SEED-PAY-1003';
+
+-- ============================================================================
+-- STEP 13: PAYMENT METRICS — aggregate counters for dashboard widgets
+-- ============================================================================
+INSERT INTO payment_metrics (metric_name, metric_value, recorded_at)
+VALUES
+  ('payments.created.count', 6, NOW()),
+  ('payments.queued.count', 2, NOW()),
+  ('payments.processing.count', 2, NOW()),
+  ('payments.sent.count', 1, NOW()),
+  ('payments.failed.count', 1, NOW()),
+  ('fraud.rules.triggered.count', 4, NOW());
 
 COMMIT;
