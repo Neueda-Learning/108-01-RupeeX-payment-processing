@@ -7,6 +7,7 @@ import com.rupeex.main.enums.RiskCategory;
 import com.rupeex.main.platform.dto.PaymentPlatformRequest;
 import com.rupeex.main.platform.dto.PaymentPlatformResponse;
 import com.rupeex.main.platform.service.*;
+import com.rupeex.main.platform.service.TransactionLogService;
 import com.rupeex.main.repository.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -44,6 +45,7 @@ class PaymentOrchestrationServiceTest {
     @Mock private AuditEngineService auditEngineService;
     @Mock private NotificationEngineService notificationEngineService;
     @Mock private SystemEventService systemEventService;
+    @Mock private TransactionLogService transactionLogService;
 
     @InjectMocks
     private PaymentOrchestrationService orchestrationService;
