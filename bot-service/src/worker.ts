@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import axios from 'axios';
 import crypto from 'crypto';
 import { consumeCommands, connectRabbit } from './rabbit';
+import { AccessDeniedError, assertOwnAccount, assertOwnsPayment } from './access';
 
 dotenv.config();
 
@@ -12,8 +13,20 @@ const DEFAULT_DESTINATION_COUNTRY = process.env.BOT_DEFAULT_DESTINATION_COUNTRY 
 
 async function handleMessage(command: any) {
   console.log('Worker received command', command);
-  const { type, payload } = command;
+  const { type, payload, __user: user } = command;
   try {
+    // Defense-in-depth: re-validate ownership here too, in case a command
+    // ever reaches the queue without having been checked by the API layer.
+    if (user && user.role !== 'admin') {
+      if (type === 'create_payment') {
+        assertOwnAccount(user, payload.sourceAccount || payload.accounts?.[0]);
+      } else if (type === 'retry_payment' || type === 'cancel_payment') {
+        const headers: any = {};
+        if (BOT_API_KEY) headers['Authorization'] = `Bearer ${BOT_API_KEY}`;
+        const existing = await axios.get(`${PAYMENT_API}/payments/${payload.paymentId}`, { headers });
+        assertOwnsPayment(user, existing.data);
+      }
+    }
     if (type === 'create_payment') {
       const sourceAccount = payload.sourceAccount || payload.accounts?.[0];
       const destinationAccount = payload.destinationAccount || payload.accounts?.[1];

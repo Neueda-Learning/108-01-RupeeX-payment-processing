@@ -1,4 +1,5 @@
 import { extractIntentWithSLM } from './slm';
+import type { BotUser } from './access';
 
 export type BotCommand = {
   type: string;
@@ -21,19 +22,33 @@ const SLM_MIN_CONFIDENCE = Number(process.env.SLM_MIN_CONFIDENCE || 0.5);
  * falls back to the deterministic rule-based parser below if the SLM is
  * unavailable, times out, returns low confidence, or returns "unknown".
  */
-export async function parseIntent(text: string, userId?: string): Promise<BotCommand> {
+export async function parseIntent(text: string, user?: BotUser): Promise<BotCommand> {
   if (SLM_ENABLED) {
     const slmResult = await extractIntentWithSLM(text);
     if (slmResult && slmResult.type !== 'unknown' && (slmResult.confidence ?? 0) >= SLM_MIN_CONFIDENCE) {
-      return mapSlmToCommand(slmResult, text);
+      return mapSlmToCommand(slmResult, text, user);
     }
   }
-  return parseIntentRules(text, userId);
+  return parseIntentRules(text, user);
 }
 
-function mapSlmToCommand(slm: Awaited<ReturnType<typeof extractIntentWithSLM>>, text: string): BotCommand {
+/**
+ * If the user refers to "my account"/"my balance" (or omits an account
+ * entirely) and we know their own account number, default to it. This is
+ * what makes "what's my balance" resolve to the current user's account
+ * instead of failing with "no account number found".
+ */
+function mentionsOwnAccount(text: string): boolean {
+  return /\bmy\s+(account|balance)\b/i.test(text) || /\bmy\b/i.test(text);
+}
+
+function mapSlmToCommand(slm: Awaited<ReturnType<typeof extractIntentWithSLM>>, text: string, user?: BotUser): BotCommand {
   const result = slm!;
   const amount = result.amount;
+  let sourceAccount = result.sourceAccount;
+  if (!sourceAccount && user?.accountNumber && mentionsOwnAccount(text)) {
+    sourceAccount = user.accountNumber;
+  }
   const requiresConfirmation = result.type === 'create_payment' && (amount || 0) >= HIGH_THRESHOLD;
 
   switch (result.type) {
@@ -43,13 +58,13 @@ function mapSlmToCommand(slm: Awaited<ReturnType<typeof extractIntentWithSLM>>, 
         payload: {
           amount,
           currency: result.currency || 'INR',
-          accounts: [result.sourceAccount, result.destinationAccount].filter(Boolean),
-          sourceAccount: result.sourceAccount,
+          accounts: [sourceAccount, result.destinationAccount].filter(Boolean),
+          sourceAccount,
           destinationAccount: result.destinationAccount,
           raw: text,
         },
         confidence: result.confidence ?? 0.7,
-        summary: `Create payment ${amount ?? ''} ${result.currency ?? ''} ${result.sourceAccount ?? ''} -> ${result.destinationAccount ?? ''}`,
+        summary: `Create payment ${amount ?? ''} ${result.currency ?? ''} ${sourceAccount ?? ''} -> ${result.destinationAccount ?? ''}`,
         requiresConfirmation,
         source: 'slm',
       };
@@ -80,9 +95,9 @@ function mapSlmToCommand(slm: Awaited<ReturnType<typeof extractIntentWithSLM>>, 
     case 'check_balance':
       return {
         type: 'check_balance',
-        payload: { accountNumber: result.sourceAccount, raw: text },
+        payload: { accountNumber: sourceAccount, raw: text },
         confidence: result.confidence ?? 0.7,
-        summary: `Check balance for ${result.sourceAccount ?? 'account'}`,
+        summary: `Check balance for ${sourceAccount ?? 'account'}`,
         readOnly: true,
         source: 'slm',
       };
@@ -113,7 +128,7 @@ function mapSlmToCommand(slm: Awaited<ReturnType<typeof extractIntentWithSLM>>, 
  * Deterministic rule-based intent parser. Used as a fallback when the SLM
  * is disabled, unreachable, or not confident enough.
  */
-export function parseIntentRules(text: string, userId?: string): BotCommand {
+export function parseIntentRules(text: string, user?: BotUser): BotCommand {
   const t = text.trim().toLowerCase();
 
   if (/create .*payment|make .*payment|send .*payment/.test(t)) {
@@ -135,6 +150,9 @@ export function parseIntentRules(text: string, userId?: string): BotCommand {
       const genericMatches = [...t.matchAll(/account\s*([a-z0-9\-]+)/g)].map((m) => m[1].toUpperCase());
       sourceAccount = genericMatches[0];
       destinationAccount = genericMatches[1];
+    }
+    if (!sourceAccount && user?.accountNumber && mentionsOwnAccount(t)) {
+      sourceAccount = user.accountNumber;
     }
     const accounts = [sourceAccount, destinationAccount].filter(Boolean) as string[];
 
@@ -179,7 +197,10 @@ export function parseIntentRules(text: string, userId?: string): BotCommand {
   }
 
   if (/\bbalance\b/.test(t)) {
-    const accountNumber = extractAccountNumber(t);
+    let accountNumber = extractAccountNumber(t);
+    if (!accountNumber && user?.accountNumber && mentionsOwnAccount(t)) {
+      accountNumber = user.accountNumber;
+    }
     return {
       type: 'check_balance',
       payload: { accountNumber, raw: text },

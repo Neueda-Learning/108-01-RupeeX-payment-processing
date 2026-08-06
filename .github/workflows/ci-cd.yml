@@ -1,0 +1,125 @@
+name: CI
+
+# Runs test suites for every service on pushes and pull requests, and
+# publishes a single aggregate "CI Success" status that should be set as a
+# required check in branch protection so PRs cannot merge unless everything
+# passes (see CI_CD.md for the branch-protection setup steps).
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+# Cancel superseded runs on the same branch/PR to save CI minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend-tests:
+    name: Backend tests (Spring Boot)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Run backend tests
+        # Backend tests run against an in-memory H2 database
+        # (see backend/src/test/resources/application.properties), so no
+        # external MySQL service is required in CI.
+        run: ./mvnw --batch-mode --no-transfer-progress test
+
+      - name: Publish backend test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-surefire-reports
+          path: backend/target/surefire-reports
+          retention-days: 7
+
+  onboarding-service-tests:
+    name: Onboarding service tests (Spring Boot)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: onboarding-service
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Run onboarding-service tests
+        run: mvn --batch-mode --no-transfer-progress test
+
+      - name: Publish onboarding-service test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: onboarding-service-surefire-reports
+          path: onboarding-service/target/surefire-reports
+          retention-days: 7
+
+  frontend-checks:
+    name: Frontend lint & build (Next.js)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+  ci-success:
+    name: CI Success
+    if: always()
+    needs:
+      - backend-tests
+      - onboarding-service-tests
+      - frontend-checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any required job failed
+        run: |
+          if [ "${{ contains(needs.*.result, 'failure') }}" = "true" ] || \
+             [ "${{ contains(needs.*.result, 'cancelled') }}" = "true" ]; then
+            echo "One or more required jobs failed."
+            exit 1
+          fi
+          echo "All required jobs passed."
