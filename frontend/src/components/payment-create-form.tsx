@@ -224,6 +224,40 @@ export function PaymentCreateForm({
         ...form,
         ...(isScheduled && scheduledAt ? { scheduledAt: `${scheduledAt}:00` } : {}),
       });
+
+      // Show a toast reflecting the payment's initial status. Note: payments
+      // typically start as CREATED/QUEUED and transition to SETTLED/FAILED
+      // asynchronously via the processing pipeline, so this reflects the
+      // state at creation time, not necessarily the final outcome.
+      const status = String(created.status);
+      if (status === "FAILED") {
+        toast.error(
+          "Payment Failed ❌",
+          `Payment ${created.reference || `#${created.id}`} failed${created.errorMessage ? `: ${created.errorMessage}` : ". Please try again."}`,
+        );
+      } else if (status === "PENDING_ADMIN_APPROVAL") {
+        toast.warning(
+          "Admin Approval Needed ⏳",
+          `Payment ${created.reference || `#${created.id}`} requires admin approval before it can proceed.`,
+        );
+      } else if (status === "SENT" || status === "SETTLED" || status === "SUCCESS" || status === "COMPLETED") {
+        toast.success(
+          "Payment Successful! ✅",
+          `Payment ${created.reference || `#${created.id}`} has been completed successfully.`,
+        );
+      } else if (status === "SCHEDULED") {
+        toast.success(
+          "Payment Scheduled ✅",
+          `Payment ${created.reference || `#${created.id}`} has been scheduled successfully.`,
+        );
+      } else {
+        // CREATED, QUEUED, VALIDATED, RISK_ANALYZED, FRAUD_CHECKED, PROCESSING, PENDING, etc.
+        toast.success(
+          "Payment Submitted! ✅",
+          `Payment ${created.reference || `#${created.id}`} was submitted and is now ${status.toLowerCase().replace(/_/g, " ")}.`,
+        );
+      }
+
       onCreated(created);
       // Reset form
       setForm((f) => ({ ...f, amount: 1000, destinationAccount: "", payerEmail: "" }));
@@ -234,7 +268,9 @@ export function PaymentCreateForm({
       setMaskedEmail("");
       setOtpDeliveryWarning(null);
     } catch (err) {
-      setOtpError(err instanceof Error ? err.message : "Unable to complete payment");
+      const message = err instanceof Error ? err.message : "Unable to complete payment";
+      setOtpError(message);
+      toast.error("Payment Failed ❌", message);
     } finally {
       setIsVerifying(false);
     }
