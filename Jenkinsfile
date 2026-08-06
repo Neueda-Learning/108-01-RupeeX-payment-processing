@@ -25,8 +25,14 @@ pipeline {
                 ]) {
                     sh '''
                         cp "$ENV_FILE" .env
+
+                        # Remove Windows CRLF characters
+                        tr -d "\\r" < .env > .env.tmp
+                        mv .env.tmp .env
+
                         chmod 600 .env
-                        echo ".env loaded"
+
+                        echo ".env loaded and fixed"
                     '''
                 }
             }
