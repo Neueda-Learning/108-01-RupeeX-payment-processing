@@ -24,10 +24,9 @@ public class PaymentPlatformRequest {
     @NotBlank
     private String idempotencyKey;
 
-    @NotBlank
+    // Countries are now optional - fetched from Account entities if not provided
     private String originCountry;
 
-    @NotBlank
     private String destinationCountry;
 
     private String payerEmail;
