@@ -6,6 +6,18 @@ import { getAccounts, getPayments } from "@/lib/api";
 import type { Account, Payment } from "@/lib/types";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { listOnboardingUsers } from "@/lib/onboarding-api";
 import { useUserStore } from "@/lib/user-store";
 import type { AppUser, UserRole } from "@/lib/user-store";
@@ -163,6 +175,29 @@ export default function AdminViewPage() {
     return Object.entries(counts).sort((a, b) => b[1] - a[1]);
   }, [payments]);
 
+  const lineMetrics = useMemo(
+    () => [
+      { metric: "Total Payments", value: payments.length },
+      { metric: "Settled", value: settled.length },
+      { metric: "Failed", value: failed.length },
+      { metric: "In-flight", value: active.length },
+      { metric: "Accounts", value: accounts.length },
+    ],
+    [accounts.length, active.length, failed.length, payments.length, settled.length],
+  );
+
+  const barMetrics = useMemo(
+    () => [
+      { metric: "Total Volume", value: sumAmount(payments) },
+      { metric: "Settled Value", value: sumAmount(settled) },
+      {
+        metric: "Avg Payment",
+        value: payments.length ? sumAmount(payments) / payments.length : 0,
+      },
+    ],
+    [payments, settled],
+  );
+
   return (
     <div className="mx-auto max-w-7xl space-y-8 px-6 py-10 lg:px-8">
       <header className="space-y-1">
@@ -232,6 +267,76 @@ export default function AdminViewPage() {
           }
           sub="Across all transactions"
         />
+      </section>
+
+      {/* Graphs from headline metrics */}
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-base font-semibold text-slate-900">
+            Payment metrics graphs
+          </h2>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Visualizing the same headline figures shown above.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <section className="panel rounded-2xl p-6">
+            <h3 className="mb-4 text-sm font-semibold text-slate-900">
+              Count metrics (Line)
+            </h3>
+            {lineMetrics.length === 0 ? (
+              <p className="text-sm text-slate-400">No payments yet.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={280}>
+                <LineChart data={lineMetrics} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="metric" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip formatter={(value) => [value, "Count"]} />
+                  <Legend />
+                  <Line type="monotone" dataKey="value" name="Count" stroke="#3b82f6" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </section>
+
+          <section className="panel rounded-2xl p-6">
+            <h3 className="mb-4 text-sm font-semibold text-slate-900">
+              Value metrics (Bar)
+            </h3>
+            {barMetrics.length === 0 ? (
+              <p className="text-sm text-slate-400">No payments yet.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={barMetrics} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="metric" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <YAxis
+                    tick={{ fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(v) =>
+                      v >= 1_000_000
+                        ? `₹${(v / 1_000_000).toFixed(1)}M`
+                        : v >= 1_000
+                          ? `₹${(v / 1_000).toFixed(0)}K`
+                          : `₹${v}`
+                    }
+                  />
+                  <Tooltip
+                    formatter={(value) => [
+                      `₹${Number(value).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`,
+                      "Amount",
+                    ]}
+                  />
+                  <Legend />
+                  <Bar dataKey="value" name="Amount" fill="#f97316" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </section>
+        </div>
       </section>
 
       {/* Status breakdown + Account activity */}
