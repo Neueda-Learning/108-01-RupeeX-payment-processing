@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import { parseIntent } from './intent';
 import { publishCommand, connectRabbit } from './rabbit';
 import { startWorker } from './worker';
-import { isSlmAvailable } from './slm';
+import { isSlmAvailable, generateChatResponse } from './slm';
 import { initRag, getRagStatus } from './rag';
 import { getAccountBalance, listAccounts, getPaymentStatus } from './backendClient';
 import { AccessDeniedError, assertOwnAccount, assertOwnsPayment, filterAccountsForUser, type BotUser } from './access';
@@ -20,6 +20,15 @@ app.post('/nl', async (req, res) => {
     const { text, user } = req.body as { text?: string; user?: BotUser };
     if (!text) return res.status(400).json({ error: 'text required' });
     const intent = await parseIntent(text, user);
+
+    if (intent.type === 'unknown') {
+      if (process.env.SLM_ENABLED === 'true' || await isSlmAvailable()) {
+        const reply = await generateChatResponse(text);
+        if (reply) {
+          return res.json({ intent, reply });
+        }
+      }
+    }
 
     // Read-only lookups have no side effects and don't need confirmation or
     // queueing — resolve them immediately and return the data inline.
