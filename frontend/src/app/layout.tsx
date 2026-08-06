@@ -4,7 +4,6 @@ import "./globals.css";
 import { Sidebar } from "@/components/sidebar";
 import { Footer } from "@/components/footer";
 import { BotChatWidget } from "@/components/bot-chat-widget";
-import { ThemeProvider } from "@/lib/theme-provider";
 
 const displaySans = Space_Grotesk({
   variable: "--font-display-sans",
@@ -33,17 +32,15 @@ export default function RootLayout({
       lang="en"
       className={`${displaySans.variable} ${plexMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
-        <ThemeProvider>
-          <div className="flex min-h-screen">
-            <Sidebar />
-            <div className="flex flex-1 flex-col md:ml-64">
-              <main className="flex-1">{children}</main>
-              <Footer />
-            </div>
+      <body className="min-h-full bg-gradient-to-br from-slate-50 to-slate-100">
+        <div className="flex min-h-screen">
+          <Sidebar />
+          <div className="flex flex-1 flex-col md:ml-64">
+            <main className="flex-1">{children}</main>
+            <Footer />
           </div>
-          <BotChatWidget />
-        </ThemeProvider>
+        </div>
+        <BotChatWidget />
       </body>
     </html>
   );

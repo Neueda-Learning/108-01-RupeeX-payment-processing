@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Menu, X, Moon, Sun } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useUserStore } from "@/lib/user-store";
 import { UserProfile } from "./user-profile";
-import { useTheme } from "@/lib/theme-provider";
 
 const ALL_NAV_LINKS = [
   { href: "/", label: "Home", adminOnly: false, memberHidden: true },
@@ -22,7 +21,6 @@ const ALL_NAV_LINKS = [
 export function Sidebar() {
   const [open, setOpen] = useState(false);
   const { currentUser } = useUserStore();
-  const { theme, toggleTheme } = useTheme();
 
   const visibleLinks = ALL_NAV_LINKS.filter((link) => {
     if (link.adminOnly && currentUser && currentUser.role !== "admin") return false;
@@ -35,7 +33,7 @@ export function Sidebar() {
       {/* Mobile Toggle Button */}
       <button
         onClick={() => setOpen(!open)}
-        className="fixed top-4 left-4 z-40 inline-flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2 text-slate-600 dark:text-slate-400 md:hidden hover:bg-slate-50 dark:hover:bg-slate-700"
+        className="fixed top-4 left-4 z-40 inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white p-2 text-slate-600 md:hidden hover:bg-slate-50"
         aria-label="Toggle sidebar"
       >
         {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -44,24 +42,24 @@ export function Sidebar() {
       {/* Overlay for mobile */}
       {open && (
         <div
-          className="fixed inset-0 z-30 bg-black/40 dark:bg-black/60 md:hidden"
+          className="fixed inset-0 z-30 bg-black/40 md:hidden"
           onClick={() => setOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <aside
-        className={`fixed left-0 top-0 z-40 flex h-full w-64 flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 transition-transform duration-300 md:translate-x-0 ${
+        className={`fixed left-0 top-0 z-40 flex h-full w-64 flex-col border-r border-slate-200 bg-white transition-transform duration-300 md:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Logo */}
-        <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-6">
+        <div className="border-b border-slate-200 px-6 py-6">
           <Link href="/" className="flex items-center gap-3 font-semibold" onClick={() => setOpen(false)}>
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500 dark:bg-orange-600 text-lg font-bold text-white shadow-sm shadow-orange-500/30">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500 text-lg font-bold text-white shadow-sm shadow-orange-500/30">
               ₹
             </span>
-            <span className="text-lg tracking-tight text-slate-900 dark:text-white">
+            <span className="text-lg tracking-tight text-slate-900">
               RupeeX
             </span>
           </Link>
@@ -74,38 +72,16 @@ export function Sidebar() {
               key={link.href}
               href={link.href}
               onClick={() => setOpen(false)}
-              className="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 transition hover:bg-orange-50 dark:hover:bg-slate-800 hover:text-orange-700 dark:hover:text-orange-400"
+              className="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-orange-50 hover:text-orange-700"
             >
               {link.label}
             </Link>
           ))}
         </nav>
 
-        {/* Footer */}
-        <div className="border-t border-slate-200 dark:border-slate-800 px-4 py-4 space-y-4">
-          {/* Theme Toggle */}
-          <button
-            onClick={toggleTheme}
-            className="w-full flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800"
-            aria-label="Toggle theme"
-          >
-            {theme === "dark" ? (
-              <>
-                <Sun className="h-4 w-4" />
-                <span>Light mode</span>
-              </>
-            ) : (
-              <>
-                <Moon className="h-4 w-4" />
-                <span>Dark mode</span>
-              </>
-            )}
-          </button>
-
-          {/* User Profile */}
-          <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
-            <UserProfile />
-          </div>
+        {/* Footer - User Profile */}
+        <div className="border-t border-slate-200 px-4 py-4">
+          <UserProfile />
         </div>
       </aside>
     </>
