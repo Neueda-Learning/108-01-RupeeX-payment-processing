@@ -68,7 +68,9 @@ export function PaymentsTable({ payments }: { payments: Payment[] }) {
                   <StatusBadge status={payment.status} />
                 </td>
                 <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-500 dark:text-slate-400">
-                  {formatDateTime(payment.updatedAt)}
+                  {payment.status === "SCHEDULED" && payment.scheduledAt
+                    ? `Scheduled: ${formatDateTime(payment.scheduledAt)}`
+                    : formatDateTime(payment.updatedAt)}
                 </td>
               </tr>
             ))}

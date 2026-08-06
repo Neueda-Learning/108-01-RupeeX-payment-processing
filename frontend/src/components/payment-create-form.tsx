@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Account, CreatePaymentInput, Payment } from "@/lib/types";
-import { createPayment, getAccounts, sendOtp, verifyOtp } from "@/lib/api";
+import type { Account, CreatePaymentInput, ExchangeRateResult, Payment } from "@/lib/types";
+import { convertCurrency, createPayment, getAccounts, sendOtp, verifyOtp } from "@/lib/api";
 
 /** Comprehensive country list for origin/destination selection */
 const COUNTRIES: { code: string; name: string }[] = [
@@ -188,6 +188,15 @@ export function PaymentCreateForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Scheduled payment state
+  const [isScheduled, setIsScheduled] = useState(false);
+  const [scheduledAt, setScheduledAt] = useState("");
+
+  // Live currency conversion preview state
+  const [exchange, setExchange] = useState<ExchangeRateResult | null>(null);
+  const [exchangeLoading, setExchangeLoading] = useState(false);
+  const [exchangeError, setExchangeError] = useState<string | null>(null);
+
   // OTP flow state
   const [step, setStep] = useState<"form" | "otp">("form");
   const [otpValue, setOtpValue] = useState("");
@@ -211,6 +220,44 @@ export function PaymentCreateForm({
         /* non-critical */
       });
   }, [defaultSourceAccount]);
+
+  // Fetch a live conversion preview whenever the amount, payment currency, or
+  // destination account (whose native currency may differ) changes.
+  useEffect(() => {
+    const destAcc = accounts.find(
+      (a) => a.accountNumber === form.destinationAccount,
+    );
+    const targetCurrency = destAcc?.currency;
+    if (!targetCurrency || targetCurrency === form.currency || !form.amount) {
+      setExchange(null);
+      setExchangeError(null);
+      return;
+    }
+    let cancelled = false;
+    setExchangeLoading(true);
+    setExchangeError(null);
+    const timer = setTimeout(() => {
+      convertCurrency(form.amount, form.currency, targetCurrency)
+        .then((result) => {
+          if (!cancelled) setExchange(result);
+        })
+        .catch((err) => {
+          if (!cancelled) {
+            setExchange(null);
+            setExchangeError(
+              err instanceof Error ? err.message : "Exchange rate unavailable",
+            );
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setExchangeLoading(false);
+        });
+    }, 400); // debounce rapid amount typing
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [form.amount, form.currency, form.destinationAccount, accounts]);
 
   // Auto-set origin country AND payer email from selected source account
   const handleSourceAccountChange = (accountNumber: string) => {
@@ -248,6 +295,16 @@ export function PaymentCreateForm({
       );
       return;
     }
+    if (isScheduled) {
+      if (!scheduledAt) {
+        setError("Please choose a date and time to schedule this payment.");
+        return;
+      }
+      if (new Date(scheduledAt).getTime() <= Date.now()) {
+        setError("Scheduled time must be in the future (IST).");
+        return;
+      }
+    }
     setError(null);
     setIsSubmitting(true);
     try {
@@ -275,10 +332,15 @@ export function PaymentCreateForm({
         setOtpError(result.message ?? "Invalid or expired OTP. Try again.");
         return;
       }
-      const created = await createPayment(form);
+      const created = await createPayment({
+        ...form,
+        ...(isScheduled && scheduledAt ? { scheduledAt: `${scheduledAt}:00` } : {}),
+      });
       onCreated(created);
       // Reset form
       setForm((f) => ({ ...f, amount: 1000, destinationAccount: "", payerEmail: "" }));
+      setIsScheduled(false);
+      setScheduledAt("");
       setStep("form");
       setOtpValue("");
       setMaskedEmail("");
@@ -488,6 +550,65 @@ export function PaymentCreateForm({
             ))}
           </select>
         </label>
+      </div>
+
+      {/* Live currency conversion preview */}
+      {(exchangeLoading || exchange || exchangeError) && (
+        <div className="mt-4 rounded-lg bg-slate-50 px-3 py-2 text-sm dark:bg-slate-800/50">
+          {exchangeLoading && (
+            <span className="text-slate-500">Fetching live exchange rate…</span>
+          )}
+          {!exchangeLoading && exchange && (
+            <span className="text-slate-700 dark:text-slate-200">
+              Recipient receives approx.{" "}
+              <span className="font-semibold">
+                {exchange.toCurrency} {exchange.convertedAmount.toLocaleString("en-IN")}
+              </span>{" "}
+              <span className="text-xs text-slate-400">
+                (1 {exchange.fromCurrency} = {exchange.exchangeRate} {exchange.toCurrency})
+              </span>
+            </span>
+          )}
+          {!exchangeLoading && exchangeError && (
+            <span className="text-amber-600">
+              Live exchange rate unavailable: {exchangeError}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Schedule payment */}
+      <div className="mt-4 rounded-lg border border-slate-200 p-3">
+        <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+          <input
+            type="checkbox"
+            checked={isScheduled}
+            onChange={(e) => {
+              setIsScheduled(e.target.checked);
+              if (!e.target.checked) setScheduledAt("");
+            }}
+            className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+          />
+          Schedule this payment for later
+        </label>
+        {isScheduled && (
+          <label className="mt-3 block text-sm">
+            <span className="mb-1 block font-medium text-slate-700">
+              Release date &amp; time (IST)
+            </span>
+            <input
+              type="datetime-local"
+              value={scheduledAt}
+              onChange={(e) => setScheduledAt(e.target.value)}
+              required={isScheduled}
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 outline-none ring-orange-500/30 focus:ring sm:w-64"
+            />
+            <span className="mt-1 block text-xs text-slate-400">
+              The payment will be held and automatically processed at this
+              Indian Standard Time.
+            </span>
+          </label>
+        )}
       </div>
 
       {error && (
