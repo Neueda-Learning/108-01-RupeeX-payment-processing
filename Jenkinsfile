@@ -26,8 +26,7 @@ pipeline {
                     sh '''
                         cp "$ENV_FILE" .env
                         chmod 600 .env
-
-                        echo ".env loaded from Jenkins Secret File"
+                        echo ".env loaded"
                     '''
                 }
             }
@@ -45,8 +44,10 @@ pipeline {
             }
             post {
                 always {
-                    junit testResults: 'backend/target/surefire-reports/*.xml',
-                          allowEmptyResults: true
+                    junit(
+                        testResults: 'backend/target/surefire-reports/*.xml',
+                        allowEmptyResults: true
+                    )
                 }
             }
         }
@@ -63,8 +64,10 @@ pipeline {
             }
             post {
                 always {
-                    junit testResults: 'onboarding-service/target/surefire-reports/*.xml',
-                          allowEmptyResults: true
+                    junit(
+                        testResults: 'onboarding-service/target/surefire-reports/*.xml',
+                        allowEmptyResults: true
+                    )
                 }
             }
         }
@@ -105,15 +108,15 @@ pipeline {
                     docker-compose -f ${COMPOSE_FILE} up -d db
 
 
-                    echo "Waiting for MySQL..."
+                    echo "Waiting for MySQL health..."
 
                     for i in $(seq 1 30)
                     do
-                        status=$(docker inspect \
+                        STATUS=$(docker inspect \
                         --format='{{.State.Health.Status}}' \
-                        rupeex-db 2>/dev/null || echo "starting")
+                        rupeex-db 2>/dev/null || echo starting)
 
-                        if [ "$status" = "healthy" ]
+                        if [ "$STATUS" = "healthy" ]
                         then
                             echo "MySQL is healthy"
                             break
@@ -138,10 +141,10 @@ pipeline {
                     ALTER USER '${MYSQL_USER}'@'%'
                     IDENTIFIED BY '${SPRING_DATASOURCE_PASSWORD}';
 
-                    CREATE DATABASE IF NOT EXISTS \`${MYSQL_DATABASE}\`;
+                    CREATE DATABASE IF NOT EXISTS ${MYSQL_DATABASE};
 
                     GRANT ALL PRIVILEGES 
-                    ON \`${MYSQL_DATABASE}\`.* 
+                    ON ${MYSQL_DATABASE}.* 
                     TO '${MYSQL_USER}'@'%';
 
                     FLUSH PRIVILEGES;
@@ -171,11 +174,11 @@ pipeline {
                     docker-compose -f ${COMPOSE_FILE} ps
 
 
-                    echo "Backend logs"
+                    echo "Backend logs:"
                     docker logs --tail=50 rupeex-app || true
 
 
-                    echo "Frontend logs"
+                    echo "Frontend logs:"
                     docker logs --tail=100 rupeex-frontend || true
                 '''
             }
