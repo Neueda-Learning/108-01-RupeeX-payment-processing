@@ -177,6 +177,44 @@ ALTER TABLE risk_scores MODIFY COLUMN category VARCHAR(50) NOT NULL;
 ALTER TABLE fraud_rules MODIFY COLUMN rule_type VARCHAR(80) NOT NULL;
 ALTER TABLE payment_verifications MODIFY COLUMN status VARCHAR(50) NOT NULL;
 
+-- Safety net: `CREATE TABLE IF NOT EXISTS` above only applies to brand-new
+-- databases. A persistent `db_data` volume created before the `email` /
+-- `payer_email` columns were added to this file would still be missing them
+-- (silently - IF NOT EXISTS skips the whole CREATE TABLE), which breaks the
+-- OTP flow ("No email address is registered on this account") even though
+-- seed data supplies an email for every account. These dynamic ALTERs add the
+-- columns only if missing, so they're safe to re-run on every startup.
+SET @rupeex_accounts_email_missing = (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'accounts' AND COLUMN_NAME = 'email'
+);
+SET @rupeex_sql = IF(@rupeex_accounts_email_missing = 0,
+    'ALTER TABLE accounts ADD COLUMN email VARCHAR(255) NULL',
+    'SELECT 1');
+PREPARE rupeex_stmt FROM @rupeex_sql;
+EXECUTE rupeex_stmt;
+DEALLOCATE PREPARE rupeex_stmt;
+
+SET @rupeex_payer_email_missing = (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'payments' AND COLUMN_NAME = 'payer_email'
+);
+SET @rupeex_sql = IF(@rupeex_payer_email_missing = 0,
+    'ALTER TABLE payments ADD COLUMN payer_email VARCHAR(255) NULL',
+    'SELECT 1');
+PREPARE rupeex_stmt FROM @rupeex_sql;
+EXECUTE rupeex_stmt;
+DEALLOCATE PREPARE rupeex_stmt;
+
+-- Backfill: any account left with a NULL/blank email (pre-existing rows from
+-- before the email column existed, or accounts created via a path that
+-- didn't supply one) gets a deterministic placeholder derived from its
+-- account number, so the OTP-send step always has an address to use instead
+-- of hard-blocking the payment flow with "No email address is registered".
+UPDATE accounts
+SET email = CONCAT(LOWER(REPLACE(account_number, ' ', '')), '@rupeex.placeholder')
+WHERE email IS NULL OR email = '';
+
 -- Data repair: MySQL's legacy zero-date sentinel ('0000-00-00 00:00:00') can
 -- end up in DATETIME/TIMESTAMP columns (e.g. rows inserted without an
 -- explicit value on a column that predates its DEFAULT CURRENT_TIMESTAMP, or
