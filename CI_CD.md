@@ -1,6 +1,34 @@
 # Jenkins CI/CD setup
 
-This document describes how to wire Jenkins to automatically build, publish and deploy this project when changes are pushed to `main`.
+This document describes how to wire Jenkins to automatically build, publish and deploy this project when changes are pushed to `main`, and how GitHub Actions gates pull requests on tests passing before they can be merged.
+
+## GitHub Actions: tests required before merge
+
+The workflow at [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml) runs on every push to `main` and on every pull request targeting `main`. It runs three independent jobs in parallel:
+
+- `backend-tests` — `./mvnw test` for the `backend/` Spring Boot service (against the in-memory H2 database used by `backend/src/test/resources/application.properties`, so no external MySQL is needed in CI).
+- `onboarding-service-tests` — `mvn test` for `onboarding-service/`.
+- `frontend-checks` — `npm ci`, `npm run lint`, and `npm run build` for `frontend/`.
+
+A final `ci-success` job depends on all three and fails if any of them failed or were cancelled, giving you one stable status check name (`CI Success`) to require.
+
+### Enforcing "tests must pass before merge"
+
+GitHub Actions running the workflow is not enough on its own — by default a PR can still be merged even if a check fails, unless a **branch protection rule** requires it. To turn that on (requires repo admin access; there is no way to do this from a workflow file):
+
+1. On GitHub, go to the repository's **Settings → Branches → Branch protection rules** and add/edit the rule for `main`.
+2. Enable **"Require a pull request before merging"**.
+3. Enable **"Require status checks to pass before merging"**, then search for and select:
+   - `Backend tests (Spring Boot)`
+   - `Onboarding service tests (Spring Boot)`
+   - `Frontend lint & build (Next.js)`
+   - `CI Success`
+4. Enable **"Require branches to be up to date before merging"** so PRs are re-tested against the latest `main`.
+5. Save. The workflow needs to have run at least once (e.g. via an initial PR) before its job names appear in the status-check picker.
+
+Once configured, GitHub will block the merge button on any PR until all of the jobs above report success.
+
+## Jenkins deployment pipeline
 
 Prerequisites
 - A Jenkins server with Docker and Maven installed (agent/node that runs builds must have Docker CLI and Docker daemon access).
@@ -18,6 +46,8 @@ Recommended Jenkins credentials
 Pipeline (Jenkinsfile)
 - The repository includes a `Jenkinsfile` that:
   - checks out source
+  - runs `backend/mvnw test` and `onboarding-service` `mvn test` — the pipeline
+    stops here (no deploy) if either test suite fails
   - runs `mvn clean package`
   - builds and tags a Docker image
   - pushes the image to the configured Docker registry
