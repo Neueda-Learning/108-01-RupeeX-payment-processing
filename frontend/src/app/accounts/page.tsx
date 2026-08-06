@@ -352,19 +352,27 @@ export default function AccountsPage() {
                 </div>
               </div>
 
-              <button
-                onClick={() => {
-                  setShowSend((v) => !v);
-                  setSendError(null);
-                  setSendSuccess(null);
-                  setSendStep("form");
-                  setSendOtpValue("");
-                  setSendOtpError(null);
-                }}
-                className="self-start rounded-xl bg-orange-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-orange-700"
-              >
-                {showSend ? "Cancel" : "Send payment"}
-              </button>
+              <div className="flex items-center gap-3 self-start">
+                <Link
+                  href={`/accounts/insights/${selected.accountNumber}`}
+                  className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+                >
+                  Insights
+                </Link>
+                <button
+                  onClick={() => {
+                    setShowSend((v) => !v);
+                    setSendError(null);
+                    setSendSuccess(null);
+                    setSendStep("form");
+                    setSendOtpValue("");
+                    setSendOtpError(null);
+                  }}
+                  className="rounded-xl bg-orange-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-orange-700"
+                >
+                  {showSend ? "Cancel" : "Send payment"}
+                </button>
+              </div>
             </div>
 
             {/* Extra account metadata */}
@@ -561,6 +569,7 @@ export default function AccountsPage() {
               formatCurrency(sumAmount(received), selected.currency),
             )}
           </section>
+
 
           {/* Transactions tabs */}
           <section className="panel overflow-hidden rounded-2xl">
