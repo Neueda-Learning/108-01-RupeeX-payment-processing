@@ -21,8 +21,31 @@ body {
     linear-gradient(180deg, #fffdfa 0%, #f6f8fd 45%, #f3f5f9 100%);
 }
 
+body.dark {
+  background:
+    radial-gradient(
+      circle at 10% 10%,
+      rgba(255, 180, 80, 0.1),
+      transparent 35%
+    ),
+    radial-gradient(
+      circle at 90% 0%,
+      rgba(40, 120, 255, 0.08),
+      transparent 42%
+    ),
+    linear-gradient(180deg, #0f172a 0%, #1a1f35 45%, #111827 100%);
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
 ::selection {
   background: rgba(246, 137, 48, 0.25);
+}
+
+.dark ::selection {
+  background: rgba(246, 137, 48, 0.4);
 }
 
 .panel {
@@ -31,3 +54,11 @@ body {
   backdrop-filter: blur(6px);
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
 }
+
+.dark .panel {
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+

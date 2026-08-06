@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
-import { Navbar } from "@/components/navbar";
+import { Sidebar } from "@/components/sidebar";
 import { Footer } from "@/components/footer";
 import { BotChatWidget } from "@/components/bot-chat-widget";
+import { ThemeProvider } from "@/lib/theme-provider";
 
 const displaySans = Space_Grotesk({
   variable: "--font-display-sans",
@@ -32,11 +33,13 @@ export default function RootLayout({
       lang="en"
       className={`${displaySans.variable} ${plexMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col text-slate-900">
-        <Navbar />
-        <main className="flex-1">{children}</main>
-        <Footer />
-        <BotChatWidget />
+      <body className="min-h-full flex flex-col text-slate-900 dark:text-slate-100 dark:bg-slate-950">
+        <ThemeProvider>
+          <Sidebar />
+          <main className="flex-1 md:ml-64">{children}</main>
+          <Footer />
+          <BotChatWidget />
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -202,40 +202,40 @@ export default function RulesPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-8 px-6 py-10 lg:px-8">
       <header>
-        <p className="text-sm font-semibold uppercase tracking-wide text-orange-700">
+        <p className="text-sm font-semibold uppercase tracking-wide text-orange-700 dark:text-orange-400">
           Fraud Rules Workspace
         </p>
-        <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">
+        <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
           Create and manage fraud detection policies
         </h1>
       </header>
 
       {error && (
-        <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-lg border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950 px-4 py-3 text-sm text-red-700 dark:text-red-300">
           {error}
-        </p>
+        </div>
       )}
 
-      <form onSubmit={submit} className="panel rounded-2xl p-6">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <form onSubmit={submit} className="panel rounded-2xl p-6 dark:bg-slate-900 dark:border-slate-700">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
           {editingRuleId ? "Edit rule" : "Create rule"}
         </h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
           A fraud rule checks each payment and adds a risk score when the
           condition matches.
         </p>
 
-        <div className="mt-4 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3">
-          <p className="text-sm font-semibold text-orange-800">
+        <div className="mt-4 rounded-lg border border-orange-200 dark:border-orange-900 bg-orange-50 dark:bg-orange-950/50 px-4 py-3">
+          <p className="text-sm font-semibold text-orange-800 dark:text-orange-300">
             Rule type: {selectedRuleHelp.label}
           </p>
-          <p className="mt-1 text-sm text-orange-700">
+          <p className="mt-1 text-sm text-orange-700 dark:text-orange-400">
             {selectedRuleHelp.description}
           </p>
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <label className="text-sm text-slate-700">
+          <label className="text-sm text-slate-700 dark:text-slate-300">
             <span className="mb-1 block font-medium">Rule Name</span>
             <input
               placeholder="Example: Large transfer check"
@@ -243,12 +243,12 @@ export default function RulesPage() {
               onChange={(event) =>
                 setForm((current) => ({ ...current, name: event.target.value }))
               }
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2"
+              className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-white"
               required
             />
           </label>
 
-          <label className="text-sm text-slate-700">
+          <label className="text-sm text-slate-700 dark:text-slate-300">
             <span className="mb-1 block font-medium">Rule Type</span>
             <select
               value={form.ruleType}
@@ -258,7 +258,7 @@ export default function RulesPage() {
                   ruleType: event.target.value as FraudRuleType,
                 }))
               }
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2"
+              className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-white"
             >
               {RULE_TYPES.map((type) => (
                 <option key={type} value={type}>
@@ -269,22 +269,22 @@ export default function RulesPage() {
           </label>
 
           {form.ruleType === "HIGH_RISK_COUNTRY" ? (
-            <div className="sm:col-span-2 text-sm text-slate-700">
+            <div className="sm:col-span-2 text-sm text-slate-700 dark:text-slate-300">
               <span className="mb-2 block font-medium">
                 Flagged Countries
-                <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs font-normal text-slate-500">
+                <span className="ml-2 rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 text-xs font-normal text-slate-500 dark:text-slate-400">
                   {selectedCountries.length} selected
                 </span>
               </span>
-              <p className="mb-2 text-xs text-slate-500">
+              <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
                 Tick the countries whose transactions should be flagged. Sources
                 are FATF grey/black lists and OFAC sanctions.
               </p>
-              <div className="grid grid-cols-1 gap-1.5 rounded-lg border border-slate-200 bg-white p-3 sm:grid-cols-2 max-h-60 overflow-y-auto">
+              <div className="grid grid-cols-1 gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 sm:grid-cols-2 max-h-60 overflow-y-auto">
                 {HIGH_RISK_COUNTRIES.map(({ code, name, basis }) => (
                   <label
                     key={code}
-                    className="flex items-start gap-2 rounded p-1 hover:bg-slate-50 cursor-pointer"
+                    className="flex items-start gap-2 rounded p-2 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
                   >
                     <input
                       type="checkbox"
@@ -299,11 +299,11 @@ export default function RulesPage() {
                       }
                     />
                     <span className="leading-snug">
-                      <span className="font-medium text-slate-800">{name}</span>
+                      <span className="font-medium text-slate-800 dark:text-slate-200">{name}</span>
                       <span className="ml-1 text-slate-400 text-xs">
                         ({code})
                       </span>
-                      <span className="block text-xs text-slate-400">
+                      <span className="block text-xs text-slate-500 dark:text-slate-400">
                         {basis}
                       </span>
                     </span>
@@ -312,7 +312,7 @@ export default function RulesPage() {
               </div>
             </div>
           ) : (
-            <label className="text-sm text-slate-700">
+            <label className="text-sm text-slate-700 dark:text-slate-300">
               <span className="mb-1 block font-medium">Threshold</span>
               <input
                 placeholder={selectedRuleHelp.thresholdHint}
@@ -324,13 +324,13 @@ export default function RulesPage() {
                     threshold: Number(event.target.value),
                   }))
                 }
-                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-white"
                 required
               />
             </label>
           )}
 
-          <label className="text-sm text-slate-700">
+          <label className="text-sm text-slate-700 dark:text-slate-300">
             <span className="mb-1 block font-medium">Risk Score Added</span>
             <input
               placeholder="Points added when this rule matches"
@@ -342,12 +342,12 @@ export default function RulesPage() {
                   scoreContribution: Number(event.target.value),
                 }))
               }
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2"
+              className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-white"
               required
             />
           </label>
 
-          <label className="sm:col-span-2 flex items-center gap-2 text-sm text-slate-700">
+          <label className="sm:col-span-2 flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
             <input
               type="checkbox"
               checked={form.enabled}
@@ -361,7 +361,7 @@ export default function RulesPage() {
             Enabled
           </label>
 
-          <label className="sm:col-span-2 text-sm text-slate-700">
+          <label className="sm:col-span-2 text-sm text-slate-700 dark:text-slate-300">
             <span className="mb-1 block font-medium">Business Description</span>
             <textarea
               placeholder="Explain what this rule protects against and when it should trigger."
@@ -372,7 +372,7 @@ export default function RulesPage() {
                   description: event.target.value,
                 }))
               }
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2"
+              className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-white"
               rows={3}
               required
             />
@@ -382,7 +382,7 @@ export default function RulesPage() {
         <div className="mt-4 flex gap-2">
           <button
             type="submit"
-            className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-700"
+            className="rounded-lg bg-orange-600 hover:bg-orange-700 dark:bg-orange-700 dark:hover:bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition"
           >
             {editingRuleId ? "Update" : "Create"}
           </button>
@@ -390,7 +390,7 @@ export default function RulesPage() {
             <button
               type="button"
               onClick={resetForm}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-sm"
+              className="rounded-lg border border-slate-200 dark:border-slate-700 px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
             >
               Cancel edit
             </button>
@@ -400,17 +400,17 @@ export default function RulesPage() {
 
       <section className="space-y-6">
         <div>
-          <h2 className="text-xl font-semibold text-slate-900">
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
             Active Fraud Rules ({rules.length})
           </h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
             Rules are evaluated for each payment. When a rule matches, its risk
             score is added to the total.
           </p>
         </div>
 
         {rules.length === 0 ? (
-          <div className="panel rounded-2xl px-6 py-8 text-center text-sm text-slate-500">
+          <div className="panel rounded-2xl px-6 py-8 text-center text-sm text-slate-500 dark:text-slate-400 dark:bg-slate-900 dark:border-slate-700">
             No fraud rules configured yet. Create a rule to start.
           </div>
         ) : (
@@ -432,10 +432,10 @@ export default function RulesPage() {
               return (
                 <div
                   key={rule.id}
-                  className={`panel rounded-2xl border-l-4 p-6 transition-all ${
+                  className={`panel rounded-2xl border-l-4 p-6 transition-all dark:bg-slate-900 dark:border-slate-700 ${
                     rule.enabled
-                      ? "border-l-emerald-500 bg-white"
-                      : "border-l-slate-300 bg-slate-50"
+                      ? "border-l-emerald-500 bg-white dark:bg-slate-900/50"
+                      : "border-l-slate-300 dark:border-l-slate-600 bg-slate-50 dark:bg-slate-950"
                   }`}
                 >
                   <div className="flex flex-col gap-4">
@@ -443,20 +443,20 @@ export default function RulesPage() {
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-lg font-semibold text-slate-900">
+                          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
                             {rule.name}
                           </h3>
                           <span
                             className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
                               rule.enabled
-                                ? "bg-emerald-100 text-emerald-700"
-                                : "bg-slate-200 text-slate-700"
+                                ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300"
+                                : "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-400"
                             }`}
                           >
                             {rule.enabled ? "Active" : "Inactive"}
                           </span>
                         </div>
-                        <p className="mt-2 text-sm text-slate-600">
+                        <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
                           {help?.description || rule.description}
                         </p>
                       </div>
@@ -477,7 +477,7 @@ export default function RulesPage() {
                             });
                             window.scrollTo({ top: 0, behavior: "smooth" });
                           }}
-                          className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                          className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
                         >
                           Edit
                         </button>
@@ -492,7 +492,7 @@ export default function RulesPage() {
                               await loadRules();
                             }
                           }}
-                          className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100"
+                          className="rounded-lg bg-red-50 dark:bg-red-950/50 px-3 py-2 text-sm font-medium text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 transition"
                         >
                           Delete
                         </button>
@@ -500,13 +500,13 @@ export default function RulesPage() {
                     </div>
 
                     {/* Settings Grid */}
-                    <div className="border-t border-slate-200 pt-4">
+                    <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                         <div>
-                          <p className="text-xs font-semibold uppercase text-slate-500">
+                          <p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
                             Type
                           </p>
-                          <p className="mt-1 text-sm font-medium text-slate-900">
+                          <p className="mt-1 text-sm font-medium text-slate-900 dark:text-white">
                             {help?.label || rule.ruleType}
                           </p>
                         </div>
@@ -514,10 +514,10 @@ export default function RulesPage() {
                         {rule.ruleType !== "HIGH_RISK_COUNTRY" &&
                           rule.ruleType !== "BLACKLISTED_ACCOUNT" && (
                             <div>
-                              <p className="text-xs font-semibold uppercase text-slate-500">
+                              <p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
                                 Threshold
                               </p>
-                              <p className="mt-1 text-sm font-medium text-slate-900">
+                              <p className="mt-1 text-sm font-medium text-slate-900 dark:text-white">
                                 {rule.ruleType === "NIGHT_TRANSACTION"
                                   ? "22:00-06:00"
                                   : rule.threshold === 0
@@ -536,10 +536,10 @@ export default function RulesPage() {
                           )}
 
                         <div>
-                          <p className="text-xs font-semibold uppercase text-slate-500">
+                          <p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
                             Risk Score
                           </p>
-                          <p className="mt-1 text-sm font-medium text-slate-900">
+                          <p className="mt-1 text-sm font-medium text-slate-900 dark:text-white">
                             +{rule.scoreContribution} pts
                           </p>
                         </div>
@@ -548,15 +548,15 @@ export default function RulesPage() {
                       {/* Blacklist Display */}
                       {rule.ruleType === "BLACKLISTED_ACCOUNT" &&
                         blacklistedAccounts.length > 0 && (
-                          <div className="mt-4 pt-4 border-t border-slate-200">
-                            <p className="text-xs font-semibold uppercase text-slate-500">
+                          <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                            <p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
                               Blocked Accounts ({blacklistedAccounts.length})
                             </p>
                             <div className="mt-2 flex flex-wrap gap-2">
                               {blacklistedAccounts.map((acc) => (
                                 <span
                                   key={acc}
-                                  className="inline-flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700"
+                                  className="inline-flex items-center gap-1 rounded-full bg-red-100 dark:bg-red-950 px-3 py-1 text-xs font-medium text-red-700 dark:text-red-300"
                                 >
                                   🚫 {acc}
                                 </span>
@@ -568,8 +568,8 @@ export default function RulesPage() {
                       {/* Country Display */}
                       {rule.ruleType === "HIGH_RISK_COUNTRY" &&
                         countryList.length > 0 && (
-                          <div className="mt-4 pt-4 border-t border-slate-200">
-                            <p className="text-xs font-semibold uppercase text-slate-500">
+                          <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                            <p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
                               Monitored Countries ({countryList.length})
                             </p>
                             <div className="mt-2 flex flex-wrap gap-2">
@@ -580,7 +580,7 @@ export default function RulesPage() {
                                 return (
                                   <span
                                     key={code}
-                                    className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-700"
+                                    className="inline-flex items-center gap-1 rounded-full bg-orange-100 dark:bg-orange-950 px-3 py-1 text-xs font-medium text-orange-700 dark:text-orange-300"
                                   >
                                     ⚠️ {code}{" "}
                                     {country ? `(${country.name})` : ""}
@@ -600,17 +600,17 @@ export default function RulesPage() {
       </section>
 
       {/* Blacklist Management Section */}
-      <section className="panel rounded-2xl p-6">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <section className="panel rounded-2xl p-6 dark:bg-slate-900 dark:border-slate-700">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
           🚫 Blacklist Management
         </h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
           Manage accounts that should be blocked. Add account numbers to block
           (e.g., BLK-FRAUD-001, ACC-SUSPICIOUS-123).
         </p>
 
-        <div className="mt-4 p-4 rounded-lg bg-amber-50 border border-amber-200">
-          <p className="text-sm text-amber-800">
+        <div className="mt-4 p-4 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-900">
+          <p className="text-sm text-amber-800 dark:text-amber-300">
             <strong>How it works:</strong> Edit the &quot;Blacklisted Account
             Rule&quot; above to add or remove accounts. Any payment involving a
             blacklisted account (source or destination) will automatically
@@ -632,14 +632,14 @@ export default function RulesPage() {
             <div className="mt-4">
               <div className="flex flex-wrap gap-2">
                 {accounts.length === 0 ? (
-                  <p className="text-sm text-slate-500">
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
                     No accounts on blacklist yet.
                   </p>
                 ) : (
                   accounts.map((acc) => (
                     <span
                       key={acc}
-                      className="inline-flex items-center gap-2 rounded-full bg-red-100 px-3 py-1 text-sm font-medium text-red-700"
+                      className="inline-flex items-center gap-2 rounded-full bg-red-100 dark:bg-red-950 px-3 py-1 text-sm font-medium text-red-700 dark:text-red-300"
                     >
                       {acc}
                     </span>
@@ -665,7 +665,7 @@ export default function RulesPage() {
                     });
                     window.scrollTo({ top: 0, behavior: "smooth" });
                   }}
-                  className="mt-4 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  className="mt-4 rounded-lg border border-slate-200 dark:border-slate-700 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
                 >
                   ✎ Manage Blacklist
                 </button>
