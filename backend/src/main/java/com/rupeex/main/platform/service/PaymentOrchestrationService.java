@@ -8,12 +8,12 @@ import com.rupeex.main.enums.PaymentStatus;
 import com.rupeex.main.platform.dto.PaymentPlatformRequest;
 import com.rupeex.main.platform.dto.PaymentPlatformResponse;
 import com.rupeex.main.repository.*;
+import com.rupeex.main.util.DateTimeUtil;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -74,12 +74,44 @@ public class PaymentOrchestrationService {
         payment.setPaymentReference("EP-" + UUID.randomUUID());
         payment.setStatus(PaymentStatus.CREATED);
         payment.setPayerEmail(request.getPayerEmail());
+        payment.setOriginCountry(request.getOriginCountry());
+        payment.setScheduledAt(request.getScheduledAt());
         payment = paymentRepository.save(payment);
         auditEngineService.record(payment.getId(), "PaymentEngine", "Payment Created", null, PaymentStatus.CREATED, 0L, null);
 
+        if (request.getScheduledAt() != null && request.getScheduledAt().isAfter(DateTimeUtil.nowIst())) {
+            transition(payment, PaymentStatus.SCHEDULED, "PaymentEngine", "Payment Scheduled",
+                    "Scheduled for release at " + request.getScheduledAt() + " IST");
+            notificationEngineService.notifyPaymentEvent(payment.getId(), "PAYMENT_SCHEDULED",
+                    "Payment scheduled for " + request.getScheduledAt() + " IST");
+            systemEventService.emit("PAYMENT_SCHEDULED", payment.getId(), payment.getPaymentReference());
+            return toResponse(payment);
+        }
+
+        runFraudAndSettlementPipeline(payment, request.getOriginCountry());
+        systemEventService.emit("PAYMENT_CREATED", payment.getId(), payment.getPaymentReference());
+        return toResponse(payment);
+    }
+
+    /**
+     * Releases a due {@code SCHEDULED} payment into the standard fraud/risk/
+     * settlement pipeline. Invoked by {@link ScheduledPaymentReleaseScheduler}
+     * once {@link Payment#getScheduledAt()} is reached.
+     */
+    @Transactional
+    public void processScheduledPayment(Long paymentId) {
+        Payment payment = paymentRepository.findById(paymentId).orElse(null);
+        if (payment == null || payment.getStatus() != PaymentStatus.SCHEDULED) {
+            return;
+        }
+        runFraudAndSettlementPipeline(payment, payment.getOriginCountry());
+        systemEventService.emit("PAYMENT_CREATED", payment.getId(), payment.getPaymentReference());
+    }
+
+    private void runFraudAndSettlementPipeline(Payment payment, String originCountry) {
         transition(payment, PaymentStatus.VALIDATED, "ValidationEngine", "Validation Completed", "Basic validation passed");
 
-        FraudEvaluationResult fraudEval = fraudDetectionEngineService.evaluate(payment, request.getOriginCountry());
+        FraudEvaluationResult fraudEval = fraudDetectionEngineService.evaluate(payment, originCountry);
         transition(payment, PaymentStatus.RISK_ANALYZED, "RiskScoringEngine", "Risk Analyzed", fraudEval.explanation());
 
         RiskScore riskScore = riskScoringEngineService.saveRiskScore(payment.getId(), fraudEval);
@@ -102,9 +134,6 @@ public class PaymentOrchestrationService {
             transition(payment, PaymentStatus.QUEUED, "QueueManager", "Queued", "Queued for settlement processing");
             enqueueForProcessing(payment.getId());
         }
-
-        systemEventService.emit("PAYMENT_CREATED", payment.getId(), payment.getPaymentReference());
-        return toResponse(payment);
     }
 
     public Page<Payment> getPayments(Pageable pageable) {
@@ -135,7 +164,7 @@ public class PaymentOrchestrationService {
 
         processingQueueRepository.findByPaymentId(id).ifPresentOrElse(entry -> {
             entry.setStatus("READY");
-            entry.setNextAttemptAt(LocalDateTime.now());
+            entry.setNextAttemptAt(DateTimeUtil.nowIst());
             processingQueueRepository.save(entry);
         }, () -> enqueueForProcessing(id));
 
@@ -220,7 +249,7 @@ public class PaymentOrchestrationService {
         entry.setPaymentId(paymentId);
         entry.setStatus("READY");
         entry.setRetryCount(0);
-        entry.setNextAttemptAt(LocalDateTime.now());
+        entry.setNextAttemptAt(DateTimeUtil.nowIst());
         processingQueueRepository.save(entry);
     }
 
@@ -251,6 +280,7 @@ public class PaymentOrchestrationService {
         response.setDestinationAccount(payment.getDestinationAccount());
         response.setStatus(payment.getStatus());
         response.setCreatedAt(payment.getCreatedAt());
+        response.setScheduledAt(payment.getScheduledAt());
         response.setErrorMessage(payment.getErrorMessage());
         response.setPayerEmail(payment.getPayerEmail());
         response.setRiskScore(riskScoreRepository.findByPaymentId(payment.getId()).orElse(null));

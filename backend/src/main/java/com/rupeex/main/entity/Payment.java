@@ -2,6 +2,7 @@ package com.rupeex.main.entity;
 
 
 import com.rupeex.main.enums.PaymentStatus;
+import com.rupeex.main.util.DateTimeUtil;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -130,6 +131,25 @@ public class Payment {
     private BigDecimal exchangeRate;
 
 
+    /**
+     * When set to a future IST timestamp, the payment is held in the
+     * {@code SCHEDULED} status by {@link com.rupeex.main.platform.service.PaymentOrchestrationService}
+     * instead of immediately entering the fraud/risk pipeline. A background
+     * scheduler promotes it once this time is reached.
+     */
+    @Column(name = "scheduled_at")
+    private LocalDateTime scheduledAt;
+
+
+    /**
+     * Origin country of the payer, captured at creation time so it can be
+     * re-used by the fraud engine when a scheduled payment is later released
+     * into the pipeline (the original request is not retained).
+     */
+    @Column(name = "origin_country", length = 8)
+    private String originCountry;
+
+
 
     /*
        Automatically called before saving first time
@@ -138,7 +158,7 @@ public class Payment {
     public void prePersist(){
 
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = DateTimeUtil.nowIst();
 
 
         this.createdAt = now;
@@ -165,7 +185,7 @@ public class Payment {
     public void preUpdate(){
 
 
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = DateTimeUtil.nowIst();
 
     }
 
@@ -274,6 +294,22 @@ public class Payment {
     public String getPayerEmail(){
 
         return this.payerEmail;
+
+    }
+
+
+
+    public LocalDateTime getScheduledAt(){
+
+        return this.scheduledAt;
+
+    }
+
+
+
+    public String getOriginCountry(){
+
+        return this.originCountry;
 
     }
 

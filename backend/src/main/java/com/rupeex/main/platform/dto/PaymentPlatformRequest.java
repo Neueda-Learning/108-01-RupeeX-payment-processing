@@ -4,6 +4,7 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 public class PaymentPlatformRequest {
 
@@ -30,6 +31,13 @@ public class PaymentPlatformRequest {
     private String destinationCountry;
 
     private String payerEmail;
+
+    /**
+     * Optional future IST timestamp. When present and after the current IST
+     * time, the payment is created in {@code SCHEDULED} status and released
+     * into the fraud/risk/settlement pipeline automatically once due.
+     */
+    private LocalDateTime scheduledAt;
 
     public BigDecimal getAmount() {
         return amount;
@@ -77,6 +85,14 @@ public class PaymentPlatformRequest {
 
     public void setOriginCountry(String originCountry) {
         this.originCountry = originCountry;
+    }
+
+    public LocalDateTime getScheduledAt() {
+        return scheduledAt;
+    }
+
+    public void setScheduledAt(LocalDateTime scheduledAt) {
+        this.scheduledAt = scheduledAt;
     }
 
     public String getDestinationCountry() {

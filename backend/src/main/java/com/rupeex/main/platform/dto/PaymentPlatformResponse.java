@@ -18,6 +18,7 @@ public class PaymentPlatformResponse {
     private LocalDateTime createdAt;
     private String errorMessage;
     private String payerEmail;
+    private LocalDateTime scheduledAt;
     private RiskScore riskScore;
     private List<FraudResult> fraudResults;
 
@@ -99,6 +100,14 @@ public class PaymentPlatformResponse {
 
     public void setPayerEmail(String payerEmail) {
         this.payerEmail = payerEmail;
+    }
+
+    public LocalDateTime getScheduledAt() {
+        return scheduledAt;
+    }
+
+    public void setScheduledAt(LocalDateTime scheduledAt) {
+        this.scheduledAt = scheduledAt;
     }
 
     public RiskScore getRiskScore() {

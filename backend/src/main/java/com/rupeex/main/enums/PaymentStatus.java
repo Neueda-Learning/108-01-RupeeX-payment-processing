@@ -6,6 +6,8 @@ public enum PaymentStatus {
 
     CREATED,
 
+    SCHEDULED,
+
     VALIDATED,
 
     RISK_ANALYZED,

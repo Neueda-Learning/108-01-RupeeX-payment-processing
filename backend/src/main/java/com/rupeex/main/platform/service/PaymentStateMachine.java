@@ -11,7 +11,8 @@ import java.util.Set;
 public class PaymentStateMachine {
 
     private static final Map<PaymentStatus, Set<PaymentStatus>> TRANSITIONS = Map.of(
-            PaymentStatus.CREATED, Set.of(PaymentStatus.VALIDATED, PaymentStatus.FAILED, PaymentStatus.CANCELLED),
+            PaymentStatus.CREATED, Set.of(PaymentStatus.VALIDATED, PaymentStatus.SCHEDULED, PaymentStatus.FAILED, PaymentStatus.CANCELLED),
+            PaymentStatus.SCHEDULED, Set.of(PaymentStatus.VALIDATED, PaymentStatus.CANCELLED, PaymentStatus.FAILED),
             PaymentStatus.VALIDATED, Set.of(PaymentStatus.RISK_ANALYZED, PaymentStatus.FAILED),
             PaymentStatus.RISK_ANALYZED, Set.of(PaymentStatus.FRAUD_CHECKED, PaymentStatus.FAILED),
             PaymentStatus.FRAUD_CHECKED, Set.of(PaymentStatus.QUEUED, PaymentStatus.FAILED, PaymentStatus.PENDING_ADMIN_APPROVAL),
