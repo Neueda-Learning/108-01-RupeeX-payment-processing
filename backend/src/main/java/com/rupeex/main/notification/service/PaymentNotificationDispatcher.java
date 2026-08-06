@@ -88,7 +88,7 @@ public class PaymentNotificationDispatcher {
         try {
             switch (eventType) {
                 case "PAYMENT_COMPLETED" -> handlePaymentCompleted(paymentId);
-                case "PAYMENT_FAILED" -> handlePaymentFailed(paymentId);
+                case "PAYMENT_FAILED", "PAYMENT_AUTO_REJECTED" -> handlePaymentFailed(paymentId);
                 case "DEBIT_POSTED" -> handleDebitPosted(paymentId);
                 case "CREDIT_POSTED" -> handleCreditPosted(paymentId);
                 case "PAYMENT_RETRY" -> handlePaymentRetry(paymentId, payload);
