@@ -21,7 +21,10 @@ pipeline {
         stage('Backend Tests') {
             steps {
                 dir('backend') {
-                    sh './mvnw --batch-mode --no-transfer-progress test'
+                    sh '''
+                        chmod +x mvnw
+                        ./mvnw --batch-mode --no-transfer-progress test
+                    '''
                 }
             }
             post {
@@ -35,7 +38,10 @@ pipeline {
         stage('Onboarding Service Tests') {
             steps {
                 dir('onboarding-service') {
-                    sh 'chmod +x mvnw && ./mvnw --batch-mode --no-transfer-progress test'
+                    sh '''
+                        chmod +x mvnw
+                        ./mvnw --batch-mode --no-transfer-progress test
+                    '''
                 }
             }
             post {
@@ -53,8 +59,9 @@ pipeline {
                     string(credentialsId: 'MYSQL_PASSWORD', variable: 'MYSQL_PASSWORD'),
                     string(credentialsId: 'SPRING_DATASOURCE_PASSWORD', variable: 'SPRING_DATASOURCE_PASSWORD')
                 ]) {
-                    sh """
-                    cat > .env <<EOF
+
+                    sh '''
+cat > .env <<EOF
 MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
 MYSQL_DATABASE=rupeex_db
 MYSQL_USER=rupeex
@@ -64,14 +71,11 @@ SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/rupeex_db?useSSL=false&allowPublicKey
 SPRING_DATASOURCE_USERNAME=rupeex
 SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
 
-# Internal Spring Boot port inside the container (not the host-exposed port).
-# The host port is controlled separately by APP_HOST_PORT (default 8082 in
-# docker-compose.prod.yml) to avoid conflicting with Jenkins on host port 8080.
 SERVER_PORT=8080
 EOF
 
-                    echo ".env file created"
-                    """
+echo ".env created"
+                    '''
                 }
             }
         }
@@ -82,9 +86,11 @@ EOF
                 sh '''
                     docker --version
                     docker-compose --version
+                    docker ps
                 '''
             }
         }
+
 
         stage('Stop Existing Containers') {
             steps {
@@ -122,18 +128,17 @@ EOF
         }
 
 
-       stage('Verify Deployment') {
+        stage('Verify Deployment') {
             steps {
                 sh '''
                     docker ps
+
                     docker-compose -f ${COMPOSE_FILE} ps
 
-                    echo "Checking application logs..."
-
+                    echo "Backend logs:"
                     docker logs --tail=50 rupeex-app || true
 
                     echo "Frontend logs:"
-
                     docker logs --tail=100 rupeex-frontend || true
                 '''
             }
@@ -143,8 +148,21 @@ EOF
         stage('Cleanup') {
             steps {
                 sh '''
-                    docker image prune -f
-                    rm -f .env
+                    docker image prune -f || true
+                    rm -f .env || true
+                '''
+            }
+        }
+
+
+        stage('Fix Workspace Ownership') {
+            steps {
+                sh '''
+                    if command -v sudo >/dev/null 2>&1; then
+                        sudo chown -R jenkins:jenkins ${WORKSPACE} || true
+                    else
+                        chown -R jenkins:jenkins ${WORKSPACE} || true
+                    fi
                 '''
             }
         }
@@ -172,7 +190,16 @@ EOF
 
 
         always {
-            cleanWs()
+            script {
+                try {
+                    cleanWs(
+                        deleteDirs: true,
+                        disableDeferredWipeout: true
+                    )
+                } catch (Exception e) {
+                    echo "Workspace cleanup failed: ${e.message}"
+                }
+            }
         }
     }
 }
