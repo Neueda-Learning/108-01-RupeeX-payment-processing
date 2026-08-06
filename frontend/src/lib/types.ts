@@ -12,6 +12,7 @@ export type PaymentStatus =
   | "FRAUD_CHECKED"
   | "QUEUED"
   | "PENDING"
+  | "PENDING_VERIFICATION"
   | "PROCESSING"
   | "SENT"
   | "SETTLED"
@@ -19,6 +20,8 @@ export type PaymentStatus =
   | "COMPLETED"
   | "FAILED"
   | "CANCELLED"
+  | "DECLINED"
+  | "INITIATED"
   | "REVERSED"
   | "PENDING_ADMIN_APPROVAL";
 

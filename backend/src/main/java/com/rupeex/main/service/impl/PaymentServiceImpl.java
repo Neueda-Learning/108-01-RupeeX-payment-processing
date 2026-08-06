@@ -15,6 +15,7 @@ import com.rupeex.main.service.IdempotencyService;
 import com.rupeex.main.service.PaymentService;
 import com.rupeex.main.service.PaymentValidationService;
 import com.rupeex.main.service.VerificationNotificationService;
+import com.rupeex.main.platform.service.TransactionLogService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,19 +30,22 @@ public class PaymentServiceImpl
     private final IdempotencyService idempotencyService;
     private final PaymentVerificationRepository paymentVerificationRepository;
     private final VerificationNotificationService verificationNotificationService;
+    private final TransactionLogService transactionLogService;
 
     public PaymentServiceImpl(
             PaymentRepository paymentRepository,
             PaymentValidationService validationService,
             IdempotencyService idempotencyService,
             PaymentVerificationRepository paymentVerificationRepository,
-            VerificationNotificationService verificationNotificationService) {
+            VerificationNotificationService verificationNotificationService,
+            TransactionLogService transactionLogService) {
 
         this.paymentRepository = paymentRepository;
         this.validationService = validationService;
         this.idempotencyService = idempotencyService;
         this.paymentVerificationRepository = paymentVerificationRepository;
         this.verificationNotificationService = verificationNotificationService;
+        this.transactionLogService = transactionLogService;
     }
 
 
@@ -79,6 +83,7 @@ public class PaymentServiceImpl
         Payment saved =
                 paymentRepository.save(payment);
 
+        transactionLogService.log(saved, "LegacyPaymentEngine", "Payment Created", null, PaymentStatus.COMPLETED, null);
 
         PaymentResponse response =
                 mapToResponse(saved);
@@ -131,8 +136,10 @@ public class PaymentServiceImpl
                         "Payment not found: " + paymentId
                 ));
 
+        PaymentStatus previousStatus = payment.getStatus();
         payment.setStatus(status);
         paymentRepository.save(payment);
+        transactionLogService.log(payment, "LegacyPaymentEngine", "Status Updated", previousStatus, status, null);
 
     }
 
@@ -181,6 +188,10 @@ public class PaymentServiceImpl
 
         paymentRepository.save(payment);
         paymentVerificationRepository.save(verification);
+
+        transactionLogService.log(payment, "LegacyPaymentEngine", "Verification Decision",
+                PaymentStatus.CREATED, payment.getStatus(),
+                request.isApproved() ? "Customer approved payment verification" : "Customer declined payment verification");
 
 
         PaymentResponse response = mapToResponse(payment);

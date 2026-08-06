@@ -35,7 +35,7 @@ export default function RootLayout({
       <body className="min-h-full bg-gradient-to-br from-slate-50 to-slate-100">
         <div className="flex min-h-screen">
           <Sidebar />
-          <div className="flex flex-1 flex-col md:ml-64">
+          <div className="flex flex-1 flex-col md:ml-56">
             <main className="flex-1">{children}</main>
             <Footer />
           </div>
