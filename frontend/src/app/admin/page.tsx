@@ -92,8 +92,11 @@ export default function AdminViewPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { mergeUsers } = useUserStore();
+  const { mergeUsers, accountsVersion } = useUserStore();
 
+  // Data load on mount, and again whenever `accountsVersion` is bumped (a
+  // new account/user was just created elsewhere, e.g. via the "Add User"
+  // modal) so it shows up here without a manual page refresh.
   useEffect(() => {
     let cancelled = false;
     Promise.all([getPayments(), getAccounts(), listOnboardingUsers()])
@@ -126,7 +129,7 @@ export default function AdminViewPage() {
       cancelled = true;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [accountsVersion]);
 
   const settled = useMemo(
     () => payments.filter((p) => SETTLED_STATES.includes(p.status)),

@@ -211,9 +211,9 @@ export default function RulesPage() {
       </header>
 
       {error && (
-        <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
-        </p>
+        </div>
       )}
 
       <form onSubmit={submit} className="panel rounded-2xl p-6">
@@ -221,8 +221,7 @@ export default function RulesPage() {
           {editingRuleId ? "Edit rule" : "Create rule"}
         </h2>
         <p className="mt-1 text-sm text-slate-600">
-          A fraud rule checks each payment and adds a risk score when the
-          condition matches.
+          A fraud rule checks each payment and adds a risk score when the condition matches.
         </p>
 
         <div className="mt-4 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3">
@@ -300,12 +299,8 @@ export default function RulesPage() {
                     />
                     <span className="leading-snug">
                       <span className="font-medium text-slate-800">{name}</span>
-                      <span className="ml-1 text-slate-400 text-xs">
-                        ({code})
-                      </span>
-                      <span className="block text-xs text-slate-400">
-                        {basis}
-                      </span>
+                      <span className="ml-1 text-slate-400 text-xs">({code})</span>
+                      <span className="block text-xs text-slate-400">{basis}</span>
                     </span>
                   </label>
                 ))}
@@ -352,10 +347,7 @@ export default function RulesPage() {
               type="checkbox"
               checked={form.enabled}
               onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  enabled: event.target.checked,
-                }))
+                setForm((current) => ({ ...current, enabled: event.target.checked }))
               }
             />
             Enabled
@@ -367,10 +359,7 @@ export default function RulesPage() {
               placeholder="Explain what this rule protects against and when it should trigger."
               value={form.description}
               onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  description: event.target.value,
-                }))
+                setForm((current) => ({ ...current, description: event.target.value }))
               }
               className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2"
               rows={3}
@@ -419,11 +408,8 @@ export default function RulesPage() {
               const help = RULE_HELP[rule.ruleType];
               let blacklistedAccounts: string[] = [];
               if (rule.ruleType === "BLACKLISTED_ACCOUNT") {
-                blacklistedAccounts = parseListFromDescription(
-                  rule.description,
-                );
+                blacklistedAccounts = parseListFromDescription(rule.description);
               }
-
               const countryList =
                 rule.ruleType === "HIGH_RISK_COUNTRY"
                   ? parseCountriesFromDescription(rule.description).countries
@@ -439,7 +425,6 @@ export default function RulesPage() {
                   }`}
                 >
                   <div className="flex flex-col gap-4">
-                    {/* Header */}
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="flex-1">
                         <div className="flex flex-wrap items-center gap-2">
@@ -483,11 +468,7 @@ export default function RulesPage() {
                         </button>
                         <button
                           onClick={async () => {
-                            if (
-                              window.confirm(
-                                "Delete this rule? This action cannot be undone.",
-                              )
-                            ) {
+                            if (window.confirm("Delete this rule? This action cannot be undone.")) {
                               await deleteFraudRule(rule.id);
                               await loadRules();
                             }
@@ -499,34 +480,26 @@ export default function RulesPage() {
                       </div>
                     </div>
 
-                    {/* Settings Grid */}
                     <div className="border-t border-slate-200 pt-4">
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                         <div>
-                          <p className="text-xs font-semibold uppercase text-slate-500">
-                            Type
-                          </p>
+                          <p className="text-xs font-semibold uppercase text-slate-500">Type</p>
                           <p className="mt-1 text-sm font-medium text-slate-900">
                             {help?.label || rule.ruleType}
                           </p>
                         </div>
-
                         {rule.ruleType !== "HIGH_RISK_COUNTRY" &&
                           rule.ruleType !== "BLACKLISTED_ACCOUNT" && (
                             <div>
-                              <p className="text-xs font-semibold uppercase text-slate-500">
-                                Threshold
-                              </p>
+                              <p className="text-xs font-semibold uppercase text-slate-500">Threshold</p>
                               <p className="mt-1 text-sm font-medium text-slate-900">
                                 {rule.ruleType === "NIGHT_TRANSACTION"
                                   ? "22:00-06:00"
                                   : rule.threshold === 0
                                     ? "N/A"
-                                    : rule.ruleType === "VELOCITY_CHECK" ||
-                                        rule.ruleType === "SUSPICIOUS_FREQUENCY"
+                                    : rule.ruleType === "VELOCITY_CHECK" || rule.ruleType === "SUSPICIOUS_FREQUENCY"
                                       ? `${rule.threshold} txns/10min`
-                                      : rule.ruleType ===
-                                          "REPEATED_FAILED_ATTEMPTS"
+                                      : rule.ruleType === "REPEATED_FAILED_ATTEMPTS"
                                         ? `${rule.threshold} failures`
                                         : rule.ruleType === "NEW_ACCOUNT"
                                           ? `${rule.threshold} days`
@@ -534,62 +507,46 @@ export default function RulesPage() {
                               </p>
                             </div>
                           )}
-
                         <div>
-                          <p className="text-xs font-semibold uppercase text-slate-500">
-                            Risk Score
-                          </p>
+                          <p className="text-xs font-semibold uppercase text-slate-500">Risk Score</p>
                           <p className="mt-1 text-sm font-medium text-slate-900">
                             +{rule.scoreContribution} pts
                           </p>
                         </div>
                       </div>
 
-                      {/* Blacklist Display */}
-                      {rule.ruleType === "BLACKLISTED_ACCOUNT" &&
-                        blacklistedAccounts.length > 0 && (
-                          <div className="mt-4 pt-4 border-t border-slate-200">
-                            <p className="text-xs font-semibold uppercase text-slate-500">
-                              Blocked Accounts ({blacklistedAccounts.length})
-                            </p>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {blacklistedAccounts.map((acc) => (
-                                <span
-                                  key={acc}
-                                  className="inline-flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700"
-                                >
-                                  🚫 {acc}
-                                </span>
-                              ))}
-                            </div>
+                      {rule.ruleType === "BLACKLISTED_ACCOUNT" && blacklistedAccounts.length > 0 && (
+                        <div className="mt-4 pt-4 border-t border-slate-200">
+                          <p className="text-xs font-semibold uppercase text-slate-500">
+                            Blocked Accounts ({blacklistedAccounts.length})
+                          </p>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {blacklistedAccounts.map((acc) => (
+                              <span key={acc} className="inline-flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">
+                                🚫 {acc}
+                              </span>
+                            ))}
                           </div>
-                        )}
+                        </div>
+                      )}
 
-                      {/* Country Display */}
-                      {rule.ruleType === "HIGH_RISK_COUNTRY" &&
-                        countryList.length > 0 && (
-                          <div className="mt-4 pt-4 border-t border-slate-200">
-                            <p className="text-xs font-semibold uppercase text-slate-500">
-                              Monitored Countries ({countryList.length})
-                            </p>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {countryList.map((code) => {
-                                const country = HIGH_RISK_COUNTRIES.find(
-                                  (c) => c.code === code,
-                                );
-                                return (
-                                  <span
-                                    key={code}
-                                    className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-700"
-                                  >
-                                    ⚠️ {code}{" "}
-                                    {country ? `(${country.name})` : ""}
-                                  </span>
-                                );
-                              })}
-                            </div>
+                      {rule.ruleType === "HIGH_RISK_COUNTRY" && countryList.length > 0 && (
+                        <div className="mt-4 pt-4 border-t border-slate-200">
+                          <p className="text-xs font-semibold uppercase text-slate-500">
+                            Monitored Countries ({countryList.length})
+                          </p>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {countryList.map((code) => {
+                              const country = HIGH_RISK_COUNTRIES.find((c) => c.code === code);
+                              return (
+                                <span key={code} className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-700">
+                                  ⚠️ {code} {country ? `(${country.name})` : ""}
+                                </span>
+                              );
+                            })}
                           </div>
-                        )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -599,7 +556,6 @@ export default function RulesPage() {
         )}
       </section>
 
-      {/* Blacklist Management Section */}
       <section className="panel rounded-2xl p-6">
         <h2 className="text-lg font-semibold text-slate-900">
           🚫 Blacklist Management
@@ -615,32 +571,22 @@ export default function RulesPage() {
             Rule&quot; above to add or remove accounts. Any payment involving a
             blacklisted account (source or destination) will automatically
             trigger this rule and add{" "}
-            {rules.find((r) => r.ruleType === "BLACKLISTED_ACCOUNT")
-              ?.scoreContribution || 50}{" "}
+            {rules.find((r) => r.ruleType === "BLACKLISTED_ACCOUNT")?.scoreContribution || 50}{" "}
             risk points.
           </p>
         </div>
 
         {(() => {
-          const blacklistRule = rules.find(
-            (r) => r.ruleType === "BLACKLISTED_ACCOUNT",
-          );
-          const accounts = blacklistRule
-            ? parseListFromDescription(blacklistRule.description)
-            : [];
+          const blacklistRule = rules.find((r) => r.ruleType === "BLACKLISTED_ACCOUNT");
+          const accounts = blacklistRule ? parseListFromDescription(blacklistRule.description) : [];
           return (
             <div className="mt-4">
               <div className="flex flex-wrap gap-2">
                 {accounts.length === 0 ? (
-                  <p className="text-sm text-slate-500">
-                    No accounts on blacklist yet.
-                  </p>
+                  <p className="text-sm text-slate-500">No accounts on blacklist yet.</p>
                 ) : (
                   accounts.map((acc) => (
-                    <span
-                      key={acc}
-                      className="inline-flex items-center gap-2 rounded-full bg-red-100 px-3 py-1 text-sm font-medium text-red-700"
-                    >
+                    <span key={acc} className="inline-flex items-center gap-2 rounded-full bg-red-100 px-3 py-1 text-sm font-medium text-red-700">
                       {acc}
                     </span>
                   ))
@@ -652,12 +598,7 @@ export default function RulesPage() {
                     setEditingRuleId(blacklistRule.id);
                     setForm({
                       name: blacklistRule.name,
-                      description: parseListFromDescription(
-                        blacklistRule.description,
-                      )
-                        .join(", ")
-                        .split(", ")
-                        .join("\n"),
+                      description: parseListFromDescription(blacklistRule.description).join(", ").split(", ").join("\n"),
                       ruleType: blacklistRule.ruleType,
                       threshold: blacklistRule.threshold,
                       scoreContribution: blacklistRule.scoreContribution,
