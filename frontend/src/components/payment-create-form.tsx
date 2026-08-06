@@ -229,14 +229,16 @@ export function PaymentCreateForm({
     );
     const targetCurrency = destAcc?.currency;
     if (!targetCurrency || targetCurrency === form.currency || !form.amount) {
-      setExchange(null);
-      setExchangeError(null);
+      // Nothing to convert for this combination; the preview below is hidden
+      // via the derived `showExchangePreview` check, so no state reset needed.
       return;
     }
     let cancelled = false;
-    setExchangeLoading(true);
-    setExchangeError(null);
     const timer = setTimeout(() => {
+      // State updates live inside this callback (fired by the debounce timer),
+      // not synchronously in the effect body, so they don't cause cascading renders.
+      setExchangeLoading(true);
+      setExchangeError(null);
       convertCurrency(form.amount, form.currency, targetCurrency)
         .then((result) => {
           if (!cancelled) setExchange(result);
@@ -356,6 +358,12 @@ export function PaymentCreateForm({
   );
   const destOptions = accounts.filter(
     (a) => a.accountNumber !== form.sourceAccount,
+  );
+  const destAcc = accounts.find(
+    (a) => a.accountNumber === form.destinationAccount,
+  );
+  const showExchangePreview = Boolean(
+    destAcc?.currency && destAcc.currency !== form.currency && form.amount,
   );
 
   // ── OTP verification step ──────────────────────────────────────────────────
@@ -553,7 +561,7 @@ export function PaymentCreateForm({
       </div>
 
       {/* Live currency conversion preview */}
-      {(exchangeLoading || exchange || exchangeError) && (
+      {showExchangePreview && (exchangeLoading || exchange || exchangeError) && (
         <div className="mt-4 rounded-lg bg-slate-50 px-3 py-2 text-sm dark:bg-slate-800/50">
           {exchangeLoading && (
             <span className="text-slate-500">Fetching live exchange rate…</span>
