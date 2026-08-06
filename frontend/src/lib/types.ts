@@ -6,6 +6,7 @@
 
 export type PaymentStatus =
   | "CREATED"
+  | "SCHEDULED"
   | "VALIDATED"
   | "RISK_ANALYZED"
   | "FRAUD_CHECKED"
@@ -56,6 +57,8 @@ export interface Payment {
   idempotencyKey: string;
   createdAt: string;
   updatedAt: string;
+  /** IST timestamp the payment is scheduled to be released, if any. */
+  scheduledAt?: string;
   riskScore?: RiskScoreDetail;
   fraudResults?: FraudResultDetail[];
 }
@@ -69,6 +72,8 @@ export interface CreatePaymentInput {
   destinationCountry: string;
   idempotencyKey?: string;
   payerEmail?: string;
+  /** Optional future IST datetime ("YYYY-MM-DDTHH:mm") to schedule the payment. */
+  scheduledAt?: string;
 }
 
 export interface Account {
@@ -142,4 +147,12 @@ export interface DeadLetterEntry {
   reason: string;
   lastRetryCount: number;
   createdAt?: string;
+}
+
+export interface ExchangeRateResult {
+  originalAmount: number;
+  fromCurrency: string;
+  toCurrency: string;
+  exchangeRate: number;
+  convertedAmount: number;
 }

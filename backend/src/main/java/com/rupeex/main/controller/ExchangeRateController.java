@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 
 @RestController
-@RequestMapping("/api/exchange")
+@RequestMapping("/exchange")
 public class ExchangeRateController {
 
 

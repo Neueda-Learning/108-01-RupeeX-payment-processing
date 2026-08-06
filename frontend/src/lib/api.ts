@@ -2,6 +2,7 @@ import type {
   Account,
   CreatePaymentInput,
   DeadLetterEntry,
+  ExchangeRateResult,
   FraudRule,
   FraudRuleInput,
   DashboardStats,
@@ -100,6 +101,7 @@ type BackendPayment = {
   createdAt?: string;
   updatedAt?: string;
   errorMessage?: string;
+  scheduledAt?: string;
   riskScore?: BackendRiskScore;
   fraudResults?: BackendFraudResult[];
 };
@@ -139,6 +141,7 @@ function normalizePayment(payment: BackendPayment): Payment {
     createdAt: payment.createdAt ?? new Date().toISOString(),
     updatedAt:
       payment.updatedAt ?? payment.createdAt ?? new Date().toISOString(),
+    scheduledAt: payment.scheduledAt,
     riskScore: payment.riskScore
       ? {
           id: payment.riskScore.id ?? 0,
@@ -227,6 +230,7 @@ export async function createPayment(
     destinationCountry: input.destinationCountry,
     idempotencyKey,
     ...(input.payerEmail ? { payerEmail: input.payerEmail } : {}),
+    ...(input.scheduledAt ? { scheduledAt: input.scheduledAt } : {}),
   };
 
   const created = await request<BackendPayment>("/payments", {
@@ -362,6 +366,25 @@ export async function adminDeclinePayment(id: number, reason?: string): Promise<
     body: JSON.stringify({ reason: reason || "Declined by administrator" }),
   });
   return normalizePayment(payment);
+}
+
+// ---------------------------------------------------------------------------
+// Currency exchange
+// ---------------------------------------------------------------------------
+
+/**
+ * Converts an amount between currencies using the backend's live exchange
+ * rate service (ExchangeRateController -> exchangerate-api.com).
+ */
+export async function convertCurrency(
+  amount: number,
+  fromCurrency: string,
+  toCurrency: string,
+): Promise<ExchangeRateResult> {
+  return request<ExchangeRateResult>("/exchange/convert", {
+    method: "POST",
+    body: JSON.stringify({ amount, fromCurrency, toCurrency }),
+  });
 }
 
 export { ApiError };
