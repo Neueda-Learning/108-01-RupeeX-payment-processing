@@ -70,7 +70,7 @@ jobs:
           cache: maven
 
       - name: Run onboarding-service tests
-        run: mvn --batch-mode --no-transfer-progress test
+        run: ./mvnw --batch-mode --no-transfer-progress test
 
       - name: Publish onboarding-service test report
         if: always()
