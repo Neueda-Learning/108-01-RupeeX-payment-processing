@@ -30,7 +30,11 @@ function sumAmount(rows: Payment[]): number {
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [selected, setSelected] = useState<Account | null>(null);
+  // Only tracks the admin's manual pick from the dropdown below; the actual
+  // selected account is derived from this + currentUser + accounts (see
+  // `selected` below) so it always reflects the latest user/account list
+  // without needing an effect to keep it in sync.
+  const [selectedAccountNumber, setSelectedAccountNumber] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("sent");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +62,9 @@ export default function AccountsPage() {
   const [sendVerifying, setSendVerifying] = useState(false);
   const [sendMaskedEmail, setSendMaskedEmail] = useState("");
 
+  // One-time data load on mount. Account selection is derived below (not
+  // stored/synced via an effect) so it always reflects the latest user/
+  // account-list state without needing a page refresh after a user switch.
   useEffect(() => {
     let cancelled = false;
     Promise.all([getAccounts(), getPayments(), listOnboardingUsers()])
@@ -79,14 +86,6 @@ export default function AccountsPage() {
             role: c.role.toLowerCase() as UserRole,
           }) satisfies AppUser)
         );
-
-        // Pre-select: members see only their own account; admins see the first
-        if (currentUser?.role === "member") {
-          const mine = accs.find((a) => a.accountNumber === currentUser.accountNumber);
-          setSelected(mine ?? accs[0] ?? null);
-        } else {
-          if (accs.length > 0) setSelected(accs[0]);
-        }
       })
       .catch((e) => {
         if (!cancelled)
@@ -100,6 +99,48 @@ export default function AccountsPage() {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Derived (not stateful) selection: members always see their own account;
+  // admins see whatever they last picked from the dropdown, falling back to
+  // the first account if that pick is no longer valid (or none was made
+  // yet). Being a plain derived value means it updates immediately on every
+  // render - e.g. as soon as the navbar user-switcher changes `currentUser`
+  // - with no effect required to keep it in sync.
+  const selected = useMemo<Account | null>(() => {
+    if (accounts.length === 0) return null;
+    if (currentUser?.role === "member") {
+      return (
+        accounts.find((a) => a.accountNumber === currentUser.accountNumber) ??
+        accounts[0] ??
+        null
+      );
+    }
+    return (
+      accounts.find((a) => a.accountNumber === selectedAccountNumber) ??
+      accounts[0] ??
+      null
+    );
+  }, [accounts, currentUser, selectedAccountNumber]);
+
+  // Reset any in-progress "send payment" / OTP flow whenever the selected
+  // account changes (manually via the dropdown, or automatically from a user
+  // switch above) so a stale OTP step from a previous account never lingers.
+  // This follows React's recommended "adjusting state during render" pattern
+  // (see react.dev/learn/you-might-not-need-an-effect) instead of a useEffect,
+  // since it only needs to run when this specific value changes between
+  // renders - no external system or subscription involved.
+  const [lastSelectedAccountNumber, setLastSelectedAccountNumber] = useState<string | null>(null);
+  if ((selected?.accountNumber ?? null) !== lastSelectedAccountNumber) {
+    setLastSelectedAccountNumber(selected?.accountNumber ?? null);
+    setShowSend(false);
+    setSendStep("form");
+    setSendOtpValue("");
+    setSendOtpError(null);
+    setSendError(null);
+    setSendSuccess(null);
+    setSendMaskedEmail("");
+    setSendForm((f) => ({ ...f, amount: 0, destinationAccount: "" }));
+  }
 
   const sent = useMemo(
     () =>
@@ -256,13 +297,7 @@ export default function AccountsPage() {
           className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 sm:max-w-xl"
           value={selected?.accountNumber ?? ""}
           onChange={(e) => {
-            const acc = visibleAccounts.find(
-              (a) => a.accountNumber === e.target.value,
-            );
-            setSelected(acc ?? null);
-            setShowSend(false);
-            setSendSuccess(null);
-            setSendError(null);
+            setSelectedAccountNumber(e.target.value);
           }}
         >
           {visibleAccounts.map((a) => (
@@ -317,19 +352,27 @@ export default function AccountsPage() {
                 </div>
               </div>
 
-              <button
-                onClick={() => {
-                  setShowSend((v) => !v);
-                  setSendError(null);
-                  setSendSuccess(null);
-                  setSendStep("form");
-                  setSendOtpValue("");
-                  setSendOtpError(null);
-                }}
-                className="self-start rounded-xl bg-orange-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-orange-700"
-              >
-                {showSend ? "Cancel" : "Send payment"}
-              </button>
+              <div className="flex items-center gap-3 self-start">
+                <Link
+                  href={`/accounts/insights/${selected.accountNumber}`}
+                  className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+                >
+                  Insights
+                </Link>
+                <button
+                  onClick={() => {
+                    setShowSend((v) => !v);
+                    setSendError(null);
+                    setSendSuccess(null);
+                    setSendStep("form");
+                    setSendOtpValue("");
+                    setSendOtpError(null);
+                  }}
+                  className="rounded-xl bg-orange-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-orange-700"
+                >
+                  {showSend ? "Cancel" : "Send payment"}
+                </button>
+              </div>
             </div>
 
             {/* Extra account metadata */}
@@ -526,6 +569,7 @@ export default function AccountsPage() {
               formatCurrency(sumAmount(received), selected.currency),
             )}
           </section>
+
 
           {/* Transactions tabs */}
           <section className="panel overflow-hidden rounded-2xl">
