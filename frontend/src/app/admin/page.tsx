@@ -7,6 +7,8 @@ import type { Account, Payment } from "@/lib/types";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
 import {
+  Bar,
+  BarChart,
   CartesianGrid,
   Legend,
   Line,
@@ -40,46 +42,6 @@ const ACTIVE_STATES = [
   "PROCESSING",
   "SENT",
 ];
-
-type MetricGranularity = "hour" | "day" | "month" | "year";
-
-function toBucketStart(date: Date, granularity: MetricGranularity): number {
-  const d = new Date(date);
-  d.setSeconds(0, 0);
-  if (granularity === "hour") {
-    d.setMinutes(0);
-    return d.getTime();
-  }
-  d.setMinutes(0, 0, 0);
-  if (granularity === "day") {
-    d.setHours(0, 0, 0, 0);
-    return d.getTime();
-  }
-  d.setHours(0, 0, 0, 0);
-  if (granularity === "month") {
-    d.setDate(1);
-    return d.getTime();
-  }
-  d.setMonth(0, 1);
-  return d.getTime();
-}
-
-function formatBucket(ts: number, granularity: MetricGranularity): string {
-  const d = new Date(ts);
-  if (granularity === "hour") {
-    return `${d.toLocaleDateString("en-IN", { month: "short", day: "numeric" })} ${d
-      .getHours()
-      .toString()
-      .padStart(2, "0")}:00`;
-  }
-  if (granularity === "day") {
-    return d.toLocaleDateString("en-IN", { month: "short", day: "numeric" });
-  }
-  if (granularity === "month") {
-    return d.toLocaleDateString("en-IN", { year: "numeric", month: "short" });
-  }
-  return d.getFullYear().toString();
-}
 
 function MetricCard({
   label,
@@ -130,7 +92,6 @@ export default function AdminViewPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [metricGranularity, setMetricGranularity] = useState<MetricGranularity>("day");
   const { mergeUsers } = useUserStore();
 
   useEffect(() => {
@@ -211,48 +172,28 @@ export default function AdminViewPage() {
     return Object.entries(counts).sort((a, b) => b[1] - a[1]);
   }, [payments]);
 
-  const trendMetrics = useMemo(() => {
-    const buckets: Record<
-      string,
+  const lineMetrics = useMemo(
+    () => [
+      { metric: "Total Payments", value: payments.length },
+      { metric: "Settled", value: settled.length },
+      { metric: "Failed", value: failed.length },
+      { metric: "In-flight", value: active.length },
+      { metric: "Accounts", value: accounts.length },
+    ],
+    [accounts.length, active.length, failed.length, payments.length, settled.length],
+  );
+
+  const barMetrics = useMemo(
+    () => [
+      { metric: "Total Volume", value: sumAmount(payments) },
+      { metric: "Settled Value", value: sumAmount(settled) },
       {
-        ts: number;
-        label: string;
-        totalCount: number;
-        settledCount: number;
-        failedCount: number;
-        totalAmount: number;
-        settledAmount: number;
-      }
-    > = {};
-
-    for (const p of payments) {
-      const ts = toBucketStart(new Date(p.createdAt), metricGranularity);
-      const key = String(ts);
-      if (!buckets[key]) {
-        buckets[key] = {
-          ts,
-          label: formatBucket(ts, metricGranularity),
-          totalCount: 0,
-          settledCount: 0,
-          failedCount: 0,
-          totalAmount: 0,
-          settledAmount: 0,
-        };
-      }
-      const amount = Number.parseFloat(p.amount) || 0;
-      buckets[key].totalCount += 1;
-      buckets[key].totalAmount += amount;
-      if (SETTLED_STATES.includes(p.status)) {
-        buckets[key].settledCount += 1;
-        buckets[key].settledAmount += amount;
-      }
-      if (FAILED_STATES.includes(p.status)) {
-        buckets[key].failedCount += 1;
-      }
-    }
-
-    return Object.values(buckets).sort((a, b) => a.ts - b.ts);
-  }, [metricGranularity, payments]);
+        metric: "Avg Payment",
+        value: payments.length ? sumAmount(payments) / payments.length : 0,
+      },
+    ],
+    [payments, settled],
+  );
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 px-6 py-10 lg:px-8">
@@ -325,46 +266,49 @@ export default function AdminViewPage() {
         />
       </section>
 
-      {/* Time-based metrics charts */}
+      {/* Graphs from headline metrics */}
       <section className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-base font-semibold text-slate-900">
-              Payment metrics trend
-            </h2>
-            <p className="mt-0.5 text-xs text-slate-500">
-              View platform metrics per hour, day, month, or year.
-            </p>
-          </div>
-          <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1">
-            {(["hour", "day", "month", "year"] as MetricGranularity[]).map((g) => (
-              <button
-                key={g}
-                onClick={() => setMetricGranularity(g)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  metricGranularity === g
-                    ? "bg-white text-orange-700 shadow-sm"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                {g}
-              </button>
-            ))}
-          </div>
+        <div>
+          <h2 className="text-base font-semibold text-slate-900">
+            Payment metrics graphs
+          </h2>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Visualizing the same headline figures shown above.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <section className="panel rounded-2xl p-6">
             <h3 className="mb-4 text-sm font-semibold text-slate-900">
-              Volume trend ({metricGranularity})
+              Count metrics (Line)
             </h3>
-            {trendMetrics.length === 0 ? (
+            {lineMetrics.length === 0 ? (
               <p className="text-sm text-slate-400">No payments yet.</p>
             ) : (
               <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={trendMetrics} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+                <LineChart data={lineMetrics} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis dataKey="label" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <XAxis dataKey="metric" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip formatter={(value) => [value, "Count"]} />
+                  <Legend />
+                  <Line type="monotone" dataKey="value" name="Count" stroke="#3b82f6" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </section>
+
+          <section className="panel rounded-2xl p-6">
+            <h3 className="mb-4 text-sm font-semibold text-slate-900">
+              Value metrics (Bar)
+            </h3>
+            {barMetrics.length === 0 ? (
+              <p className="text-sm text-slate-400">No payments yet.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={barMetrics} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="metric" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
                   <YAxis
                     tick={{ fontSize: 11 }}
                     tickLine={false}
@@ -378,37 +322,14 @@ export default function AdminViewPage() {
                     }
                   />
                   <Tooltip
-                    formatter={(value, name) => [
+                    formatter={(value) => [
                       `₹${Number(value).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`,
-                      name === "totalAmount" ? "Total Volume" : "Settled Volume",
+                      "Amount",
                     ]}
                   />
                   <Legend />
-                  <Line type="monotone" dataKey="totalAmount" stroke="#3b82f6" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="settledAmount" stroke="#10b981" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            )}
-          </section>
-
-          <section className="panel rounded-2xl p-6">
-            <h3 className="mb-4 text-sm font-semibold text-slate-900">
-              Transaction count trend ({metricGranularity})
-            </h3>
-            {trendMetrics.length === 0 ? (
-              <p className="text-sm text-slate-400">No payments yet.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={trendMetrics} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis dataKey="label" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
-                  <Tooltip formatter={(value, name) => [value, name]} />
-                  <Legend />
-                  <Line type="monotone" dataKey="totalCount" stroke="#f59e0b" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="settledCount" stroke="#10b981" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="failedCount" stroke="#ef4444" strokeWidth={2} dot={false} />
-                </LineChart>
+                  <Bar dataKey="value" name="Amount" fill="#f97316" radius={[6, 6, 0, 0]} />
+                </BarChart>
               </ResponsiveContainer>
             )}
           </section>
