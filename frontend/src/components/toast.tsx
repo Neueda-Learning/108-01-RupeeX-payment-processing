@@ -42,7 +42,7 @@ export function ToastContainer({
   onRemove: (id: string) => void;
 }) {
   return (
-    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+    <div className="fixed top-4 right-4 z-50 flex flex-col gap-3 pointer-events-none">
       {toasts.map((toast) => (
         <ToastItem
           key={toast.id}
@@ -71,23 +71,38 @@ function ToastItem({
 
   return (
     <div
-      className={`pointer-events-auto rounded-lg border px-4 py-3 shadow-lg animate-in slide-in-from-top-2 fade-in-0 ${toastColors[toast.type]}`}
+      className={`pointer-events-auto rounded-lg border px-4 py-3 shadow-xl min-w-80 ${toastColors[toast.type]}`}
+      style={{
+        animation: "slideIn 0.3s ease-out",
+      }}
     >
+      <style>{`
+        @keyframes slideIn {
+          from {
+            transform: translateX(400px);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      `}</style>
       <div className="flex gap-3">
-        <div className="flex-shrink-0">
+        <div className="flex-shrink-0 mt-0.5">
           {toastIcons[toast.type]}
         </div>
         <div className="flex-1">
-          <h3 className={`text-sm font-semibold ${toastTextColors[toast.type]}`}>
+          <h3 className={`text-sm font-bold ${toastTextColors[toast.type]}`}>
             {toast.title}
           </h3>
-          <p className={`text-sm mt-1 ${toastTextColors[toast.type]} opacity-90`}>
+          <p className={`text-sm mt-1 ${toastTextColors[toast.type]} opacity-85`}>
             {toast.message}
           </p>
         </div>
         <button
           onClick={() => onRemove(toast.id)}
-          className={`flex-shrink-0 ${toastTextColors[toast.type]} hover:opacity-70 transition`}
+          className={`flex-shrink-0 ${toastTextColors[toast.type]} hover:opacity-70 transition mt-0.5`}
         >
           <X className="h-4 w-4" />
         </button>

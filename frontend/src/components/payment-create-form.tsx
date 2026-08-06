@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { Account, CreatePaymentInput, ExchangeRateResult, Payment } from "@/lib/types";
 import { convertCurrency, createPayment, getAccounts, sendOtp, verifyOtp } from "@/lib/api";
 import { useUserStore } from "@/lib/user-store";
+import { useToast } from "@/components/toast-provider";
 
 // Countries are now auto-fetched from source and destination accounts,
 // so COUNTRIES list is no longer needed
@@ -28,6 +29,7 @@ export function PaymentCreateForm({
   onCreated: (payment: Payment) => void;
   defaultSourceAccount?: string;
 }) {
+  const toast = useToast();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [form, setForm] = useState<CreatePaymentInput>({
     amount: 1000,
