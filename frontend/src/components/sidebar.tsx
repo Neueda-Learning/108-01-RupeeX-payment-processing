@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import { useUserStore } from "@/lib/user-store";
@@ -54,14 +55,23 @@ export function Sidebar() {
         }`}
       >
         {/* Logo */}
-        <div className="border-b border-slate-200 px-6 py-6">
-          <Link href="/" className="flex items-center gap-3 font-semibold" onClick={() => setOpen(false)}>
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500 text-lg font-bold text-white shadow-sm shadow-orange-500/30">
-              ₹
-            </span>
-            <span className="text-lg tracking-tight text-slate-900">
-              RupeeX
-            </span>
+        <div className="border-b border-slate-200 px-6 py-5">
+          <Link href="/" className="flex items-center gap-3" onClick={() => setOpen(false)}>
+            <Image
+              src="/rupeex-logo.svg"
+              alt="RupeeX Logo"
+              width={40}
+              height={40}
+              className="rounded-xl shadow-sm"
+            />
+            <div>
+              <span className="block text-lg font-bold tracking-tight text-slate-900 leading-tight">
+                RupeeX
+              </span>
+              <span className="block text-xs font-medium text-orange-600 tracking-wide">
+                Ops Console
+              </span>
+            </div>
           </Link>
         </div>
 
