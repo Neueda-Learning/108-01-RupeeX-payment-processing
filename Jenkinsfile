@@ -35,7 +35,7 @@ pipeline {
         stage('Onboarding Service Tests') {
             steps {
                 dir('onboarding-service') {
-                    sh 'mvn --batch-mode --no-transfer-progress test'
+                    sh 'chmod +x mvnw && ./mvnw --batch-mode --no-transfer-progress test'
                 }
             }
             post {
