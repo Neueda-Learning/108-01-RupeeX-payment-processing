@@ -21,6 +21,11 @@ public class PaymentPlatformResponse {
     private LocalDateTime scheduledAt;
     private RiskScore riskScore;
     private List<FraudResult> fraudResults;
+    
+    private String sourceCurrency;
+    private String destinationCurrency;
+    private BigDecimal convertedAmount;
+    private BigDecimal exchangeRate;
 
     public Long getPaymentId() {
         return paymentId;
@@ -124,5 +129,37 @@ public class PaymentPlatformResponse {
 
     public void setFraudResults(List<FraudResult> fraudResults) {
         this.fraudResults = fraudResults;
+    }
+
+    public String getSourceCurrency() {
+        return sourceCurrency;
+    }
+
+    public void setSourceCurrency(String sourceCurrency) {
+        this.sourceCurrency = sourceCurrency;
+    }
+
+    public String getDestinationCurrency() {
+        return destinationCurrency;
+    }
+
+    public void setDestinationCurrency(String destinationCurrency) {
+        this.destinationCurrency = destinationCurrency;
+    }
+
+    public BigDecimal getConvertedAmount() {
+        return convertedAmount;
+    }
+
+    public void setConvertedAmount(BigDecimal convertedAmount) {
+        this.convertedAmount = convertedAmount;
+    }
+
+    public BigDecimal getExchangeRate() {
+        return exchangeRate;
+    }
+
+    public void setExchangeRate(BigDecimal exchangeRate) {
+        this.exchangeRate = exchangeRate;
     }
 }

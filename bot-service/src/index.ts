@@ -4,9 +4,9 @@ import dotenv from 'dotenv';
 import { parseIntent } from './intent';
 import { publishCommand, connectRabbit } from './rabbit';
 import { startWorker } from './worker';
-import { isSlmAvailable, generateChatResponse } from './slm';
+import { isSlmAvailable } from './slm';
 import { initRag, getRagStatus } from './rag';
-import { getAccountBalance, listAccounts, getPaymentStatus } from './backendClient';
+import { getAccountBalance, listAccounts, getPaymentStatus, convertCurrency } from './backendClient';
 import { AccessDeniedError, assertOwnAccount, assertOwnsPayment, filterAccountsForUser, type BotUser } from './access';
 
 dotenv.config();
@@ -21,13 +21,8 @@ app.post('/nl', async (req, res) => {
     if (!text) return res.status(400).json({ error: 'text required' });
     const intent = await parseIntent(text, user);
 
-    if (intent.type === 'unknown') {
-      if (process.env.SLM_ENABLED === 'true' || await isSlmAvailable()) {
-        const reply = await generateChatResponse(text);
-        if (reply) {
-          return res.json({ intent, reply });
-        }
-      }
+    if (intent.type === 'unknown' && intent.reply) {
+      return res.json({ intent, reply: intent.reply });
     }
 
     // Read-only lookups have no side effects and don't need confirmation or
@@ -76,6 +71,25 @@ async function resolveReadOnlyIntent(
       if (!intent.payload?.accountNumber) return { error: 'No account number found in the request.' };
       assertOwnAccount(user, intent.payload.accountNumber);
       const account = await getAccountBalance(intent.payload.accountNumber);
+      
+      const targetCurrency = intent.payload.currency;
+      if (targetCurrency && targetCurrency !== account.currency) {
+        try {
+          const exchange = await convertCurrency(account.balance, account.currency, targetCurrency);
+          return {
+            result: {
+              ...account,
+              balance: exchange.convertedAmount,
+              currency: exchange.toCurrency,
+              originalBalance: account.balance,
+              originalCurrency: account.currency
+            }
+          };
+        } catch (err: any) {
+          console.warn('Currency conversion failed', err.message);
+          return { result: account, error: `Could not convert to ${targetCurrency}` };
+        }
+      }
       return { result: account };
     }
     if (intent.type === 'list_accounts') {

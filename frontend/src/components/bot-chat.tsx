@@ -54,6 +54,8 @@ type PaymentPayload = {
   paymentId?: string;
   accountNumber?: string;
   raw?: string;
+  originalAmount?: number;
+  originalCurrency?: string;
 };
 
 type BotCommand = {
@@ -80,6 +82,8 @@ type AccountInfo = {
   currency: string;
   balance: number;
   status: string;
+  originalBalance?: number;
+  originalCurrency?: string;
 };
 
 type PaymentInfo = {
@@ -154,7 +158,7 @@ export default function BotChat({
   // Voice: mic input + read-aloud toggle. Both degrade gracefully when the
   // browser doesn't support the Web Speech API.
   const [listening, setListening] = useState(false);
-  const [speakerOn, setSpeakerOn] = useState(false);
+  const [speakerOn, setSpeakerOn] = useState(true);
   const listenerRef = useRef<VoiceListenerHandle | null>(null);
   const micSupported = isSpeechRecognitionSupported();
   const speakerSupported = isSpeechSynthesisSupported();
@@ -561,6 +565,12 @@ function AccountCard({ account }: { account: AccountInfo }) {
       <p className="mt-1.5 text-xl font-semibold tracking-tight text-slate-900">
         {formatCurrency(account.balance, account.currency)}
       </p>
+      {account.originalBalance !== undefined && account.originalCurrency !== undefined && (
+        <div className="mt-2 flex w-fit items-center gap-1.5 rounded-md border border-slate-100 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600">
+          <ArrowRightLeft className="h-3 w-3 text-slate-400" />
+          Converted from {formatCurrency(account.originalBalance, account.originalCurrency)}
+        </div>
+      )}
       <div className="mt-2">
         <StatusBadge status={account.status} />
       </div>
@@ -640,7 +650,19 @@ function TransactionPreview({
 }) {
   const { payload, requiresConfirmation, confidence, source } = command;
   const amountDisplay =
-    payload.amount !== undefined ? formatCurrency(payload.amount, payload.currency || "INR") : undefined;
+    payload.amount !== undefined
+      ? payload.originalAmount !== undefined && payload.originalCurrency !== undefined
+        ? (
+          <div className="flex flex-col items-end">
+            <span className="font-semibold text-slate-900">{formatCurrency(payload.amount, payload.currency || "INR")}</span>
+            <div className="mt-0.5 flex items-center gap-1 rounded bg-slate-100/80 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+              <ArrowRightLeft className="h-2.5 w-2.5" />
+              from {formatCurrency(payload.originalAmount, payload.originalCurrency)}
+            </div>
+          </div>
+        )
+        : formatCurrency(payload.amount, payload.currency || "INR")
+      : undefined;
   const Icon = TYPE_ICONS[command.type] ?? ArrowRightLeft;
 
   return (

@@ -90,6 +90,13 @@ public class QueueProcessingScheduler {
         if (debited == 0) {
             payment.markAsFailed("INSUFFICIENT_FUNDS", "Insufficient funds in source account");
             paymentRepository.save(payment);
+            
+            DeadLetterQueueEntry dlq = new DeadLetterQueueEntry();
+            dlq.setPaymentId(payment.getId());
+            dlq.setReason("Insufficient funds");
+            dlq.setLastRetryCount(entry.getRetryCount());
+            deadLetterQueueRepository.save(dlq);
+            
             auditEngineService.record(payment.getId(), "SettlementEngine", "Insufficient Funds", PaymentStatus.SENT, PaymentStatus.FAILED, 0L, "Balance too low");
             notificationEngineService.notifyPaymentEvent(payment.getId(), "PAYMENT_FAILED", "Insufficient funds");
             processingQueueRepository.delete(entry);

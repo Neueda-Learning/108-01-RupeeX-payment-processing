@@ -60,3 +60,15 @@ export async function getPaymentStatus(paymentId: string): Promise<PaymentInfo> 
   });
   return resp.data;
 }
+
+export async function convertCurrency(amount: number, fromCurrency: string, toCurrency: string): Promise<{ convertedAmount: number, exchangeRate: number, fromCurrency: string, toCurrency: string, originalAmount: number }> {
+  const resp = await axios.post(`${PAYMENT_API}/exchange/convert`, {
+    amount,
+    fromCurrency,
+    toCurrency
+  }, {
+    headers: authHeaders(),
+    timeout: 8000,
+  });
+  return resp.data;
+}

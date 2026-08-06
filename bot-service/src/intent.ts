@@ -11,6 +11,7 @@ export type BotCommand = {
   // touch the command queue — no side effects, so no confirmation needed.
   readOnly?: boolean;
   source?: 'slm' | 'rules';
+  reply?: string;
 };
 
 const HIGH_THRESHOLD = Number(process.env.BOT_HIGH_VALUE_THRESHOLD || 100000);
@@ -24,9 +25,21 @@ const SLM_MIN_CONFIDENCE = Number(process.env.SLM_MIN_CONFIDENCE || 0.5);
  */
 export async function parseIntent(text: string, user?: BotUser): Promise<BotCommand> {
   if (SLM_ENABLED) {
-    const slmResult = await extractIntentWithSLM(text);
-    if (slmResult && slmResult.type !== 'unknown' && (slmResult.confidence ?? 0) >= SLM_MIN_CONFIDENCE) {
-      return mapSlmToCommand(slmResult, text, user);
+    const slmResult = await extractIntentWithSLM(text, user);
+    if (slmResult) {
+      if (slmResult.type !== 'unknown' && (slmResult.confidence ?? 0) >= SLM_MIN_CONFIDENCE) {
+        return mapSlmToCommand(slmResult, text, user);
+      }
+      if (slmResult.type === 'unknown' && slmResult.reply) {
+        return {
+          type: 'unknown',
+          payload: { raw: text },
+          confidence: 1.0,
+          summary: 'Conversational',
+          source: 'slm',
+          reply: slmResult.reply
+        };
+      }
     }
   }
   return parseIntentRules(text, user);
@@ -95,9 +108,9 @@ function mapSlmToCommand(slm: Awaited<ReturnType<typeof extractIntentWithSLM>>, 
     case 'check_balance':
       return {
         type: 'check_balance',
-        payload: { accountNumber: sourceAccount, raw: text },
+        payload: { accountNumber: sourceAccount, currency: result.currency, raw: text },
         confidence: result.confidence ?? 0.7,
-        summary: `Check balance for ${sourceAccount ?? 'account'}`,
+        summary: `Check balance for ${sourceAccount ?? 'account'}${result.currency ? ` in ${result.currency}` : ''}`,
         readOnly: true,
         source: 'slm',
       };
@@ -201,11 +214,13 @@ export function parseIntentRules(text: string, user?: BotUser): BotCommand {
     if (!accountNumber && user?.accountNumber && mentionsOwnAccount(t)) {
       accountNumber = user.accountNumber;
     }
+    const currencyMatch = t.match(/\b(inr|usd|eur|gbp)\b/);
+    const currency = currencyMatch ? currencyMatch[1].toUpperCase() : undefined;
     return {
       type: 'check_balance',
-      payload: { accountNumber, raw: text },
+      payload: { accountNumber, currency, raw: text },
       confidence: accountNumber ? 0.8 : 0.4,
-      summary: `Check balance for ${accountNumber ?? 'account'}`,
+      summary: `Check balance for ${accountNumber ?? 'account'}${currency ? ` in ${currency}` : ''}`,
       readOnly: true,
       source: 'rules',
     };
