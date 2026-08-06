@@ -113,6 +113,41 @@ echo ".env created"
         stage('Deploy Application') {
             steps {
                 sh '''
+                    # Start the database first and wait for it to be healthy before
+                    # bringing up the app services, which fail fast if the DB user
+                    # lacks privileges.
+                    docker-compose -f ${COMPOSE_FILE} up -d db
+
+                    echo "Waiting for MySQL to become healthy..."
+                    for i in $(seq 1 30); do
+                        status=$(docker inspect --format='{{.State.Health.Status}}' rupeex-db 2>/dev/null || echo "starting")
+                        if [ "$status" = "healthy" ]; then
+                            echo "MySQL is healthy"
+                            break
+                        fi
+                        sleep 2
+                    done
+
+                    # Self-healing grant fix: `docker-compose down` does not remove
+                    # the db_data volume, and MySQL's init scripts (which create the
+                    # app user/database/grants) only run once against an empty data
+                    # directory. If db_data was ever initialized with different
+                    # credentials/db name on this host, the app user can end up
+                    # authenticated but missing privileges on rupeex_db ("Access
+                    # denied ... to database" / MySQL error 1044). Re-applying the
+                    # grant here is idempotent and keeps every deploy self-healing
+                    # without touching existing data.
+                    set -a
+                    . ./.env
+                    set +a
+                    docker exec -i rupeex-db mysql -uroot -p"${MYSQL_ROOT_PASSWORD}" -e "
+                        CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${SPRING_DATASOURCE_PASSWORD}';
+                        ALTER USER '${MYSQL_USER}'@'%' IDENTIFIED BY '${SPRING_DATASOURCE_PASSWORD}';
+                        CREATE DATABASE IF NOT EXISTS \\`${MYSQL_DATABASE}\\`;
+                        GRANT ALL PRIVILEGES ON \\`${MYSQL_DATABASE}\\`.* TO '${MYSQL_USER}'@'%';
+                        FLUSH PRIVILEGES;
+                    "
+
                     docker-compose -f ${COMPOSE_FILE} up -d
                 '''
             }
