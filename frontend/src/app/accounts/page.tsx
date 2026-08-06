@@ -6,6 +6,7 @@ import { getAccounts, getPayments, createPayment, sendOtp, verifyOtp } from "@/l
 import type { Account, Payment, CreatePaymentInput } from "@/lib/types";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
+import { TransactionCharts } from "@/components/transaction-charts";
 import { useUserStore } from "@/lib/user-store";
 import type { AppUser, UserRole } from "@/lib/user-store";
 import { listOnboardingUsers } from "@/lib/onboarding-api";
@@ -548,6 +549,12 @@ export default function AccountsPage() {
               formatCurrency(sumAmount(received), selected.currency),
             )}
           </section>
+
+          {/* Transaction Charts */}
+          <TransactionCharts
+            payments={payments}
+            selectedAccountNumber={selected.accountNumber}
+          />
 
           {/* Transactions tabs */}
           <section className="panel overflow-hidden rounded-2xl">
