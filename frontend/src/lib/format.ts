@@ -17,12 +17,35 @@ export function formatCurrency(
 }
 
 export function formatDateTime(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("en-IN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
+  if (!value) return value;
+  // The backend serializes LocalDateTime values that are already IST
+  // wall-clock time (e.g. "2026-08-06T15:30:00") with no UTC offset. Parsing
+  // that directly with `new Date()` would apply the *browser's* local
+  // timezone, silently shifting the displayed time for any viewer outside
+  // IST. Instead, parse the wall-clock components manually and render them
+  // as UTC so Intl.DateTimeFormat performs no further conversion, then label
+  // the result as IST explicitly.
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (!match) return value;
+  const [, year, month, day, hour, minute, second] = match;
+  const utcDate = new Date(
+    Date.UTC(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(second ?? "0"),
+    ),
+  );
+  if (Number.isNaN(utcDate.getTime())) return value;
+  return (
+    new Intl.DateTimeFormat("en-IN", {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: "UTC",
+    }).format(utcDate) + " IST"
+  );
 }
 
 export function formatPercent(value: number): string {
@@ -35,6 +58,8 @@ export function formatPercent(value: number): string {
 const STATUS_STYLES: Record<string, string> = {
   CREATED:
     "bg-slate-500/10 text-slate-600 dark:text-slate-400 ring-slate-500/20",
+  SCHEDULED:
+    "bg-purple-500/10 text-purple-600 dark:text-purple-400 ring-purple-500/20",
   VALIDATED:
     "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 ring-indigo-500/20",
   RISK_ANALYZED:

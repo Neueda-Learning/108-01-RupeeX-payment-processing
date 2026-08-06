@@ -47,4 +47,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     // Find all payments ordered by creation date descending (newest first)
     List<Payment> findAllByOrderByCreatedAtDesc();
+
+    // Find scheduled payments that are now due to be released into the pipeline
+    List<Payment> findByStatusAndScheduledAtLessThanEqual(PaymentStatus status, LocalDateTime time);
 }

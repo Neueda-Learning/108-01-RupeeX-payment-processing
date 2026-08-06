@@ -8,12 +8,12 @@ import com.rupeex.main.repository.AccountsRepository;
 import com.rupeex.main.repository.DeadLetterQueueRepository;
 import com.rupeex.main.repository.PaymentRepository;
 import com.rupeex.main.repository.ProcessingQueueRepository;
+import com.rupeex.main.util.DateTimeUtil;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Component
@@ -53,7 +53,7 @@ public class QueueProcessingScheduler {
     @Scheduled(fixedDelayString = "${payment.processing.queue-poll-interval-ms:1000}")
     @Transactional
     public void processQueue() {
-        List<ProcessingQueueEntry> entries = processingQueueRepository.findReadyEntries("READY", LocalDateTime.now());
+        List<ProcessingQueueEntry> entries = processingQueueRepository.findReadyEntries("READY", DateTimeUtil.nowIst());
         for (ProcessingQueueEntry entry : entries) {
             processSingleEntry(entry);
         }
@@ -133,7 +133,7 @@ public class QueueProcessingScheduler {
 
         entry.setRetryCount(nextRetry);
         entry.setStatus("READY");
-        entry.setNextAttemptAt(LocalDateTime.now().plusNanos(baseDelayMs * 1_000_000L * nextRetry));
+        entry.setNextAttemptAt(DateTimeUtil.nowIst().plusNanos(baseDelayMs * 1_000_000L * nextRetry));
         processingQueueRepository.save(entry);
 
         payment.setStatus(PaymentStatus.QUEUED);

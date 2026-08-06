@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS payments (
     destination_currency VARCHAR(3),
     converted_amount DECIMAL(19,2),
     exchange_rate DECIMAL(19,6),
+    scheduled_at DATETIME,
+    origin_country VARCHAR(8),
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_payments_status (status),
