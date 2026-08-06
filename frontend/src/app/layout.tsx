@@ -3,6 +3,7 @@ import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
+import { BotChatWidget } from "@/components/bot-chat-widget";
 
 const displaySans = Space_Grotesk({
   variable: "--font-display-sans",
@@ -35,6 +36,7 @@ export default function RootLayout({
         <Navbar />
         <main className="flex-1">{children}</main>
         <Footer />
+        <BotChatWidget />
       </body>
     </html>
   );
