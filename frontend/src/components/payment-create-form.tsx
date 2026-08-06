@@ -55,6 +55,10 @@ export function PaymentCreateForm({
   const [otpError, setOtpError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [maskedEmail, setMaskedEmail] = useState("");
+  // Set when the OTP email couldn't be confirmed as sent (e.g. the mail
+  // service is unreachable). The OTP step is still shown in this case so the
+  // user isn't blocked from entering a code and retrying.
+  const [otpDeliveryWarning, setOtpDeliveryWarning] = useState<string | null>(null);
 
   useEffect(() => {
     getAccounts()
@@ -176,10 +180,19 @@ export function PaymentCreateForm({
     setIsSubmitting(true);
     try {
       await sendOtp(form.payerEmail, form.sourceAccount);
+      setOtpDeliveryWarning(null);
       setMaskedEmail(maskEmail(form.payerEmail));
       setStep("otp");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send OTP");
+      // The email service may be down/misconfigured, but that shouldn't block
+      // the user entirely — still advance to the OTP step (with a warning) so
+      // they can retry entering a code instead of getting stuck with no OTP
+      // field at all.
+      setOtpDeliveryWarning(
+        err instanceof Error ? err.message : "Could not confirm the OTP email was sent.",
+      );
+      setMaskedEmail(maskEmail(form.payerEmail));
+      setStep("otp");
     } finally {
       setIsSubmitting(false);
     }
@@ -211,6 +224,7 @@ export function PaymentCreateForm({
       setStep("form");
       setOtpValue("");
       setMaskedEmail("");
+      setOtpDeliveryWarning(null);
     } catch (err) {
       setOtpError(err instanceof Error ? err.message : "Unable to complete payment");
     } finally {
@@ -241,6 +255,13 @@ export function PaymentCreateForm({
           <span className="font-medium text-slate-700">{maskedEmail}</span>.
           Enter it below to authorise the payment.
         </p>
+
+        {otpDeliveryWarning && (
+          <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
+            We couldn&apos;t confirm the OTP email was delivered. If you don&apos;t
+            receive it shortly, go back and try again.
+          </p>
+        )}
 
         <div className="mt-5">
           <label className="text-sm">
@@ -279,7 +300,12 @@ export function PaymentCreateForm({
           </button>
           <button
             type="button"
-            onClick={() => { setStep("form"); setOtpValue(""); setOtpError(null); }}
+            onClick={() => {
+              setStep("form");
+              setOtpValue("");
+              setOtpError(null);
+              setOtpDeliveryWarning(null);
+            }}
             className="text-sm text-slate-500 hover:text-slate-700"
           >
             Cancel

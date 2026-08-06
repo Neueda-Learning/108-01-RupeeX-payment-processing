@@ -45,6 +45,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-rupeex}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
       SERVER_PORT: ${SERVER_PORT:-8080}
+  
+      OTP_FALLBACK_ENABLED: ${OTP_FALLBACK_ENABLED:-true}
     ports:
       - "127.0.0.1:8082:8080"
     restart: on-failure

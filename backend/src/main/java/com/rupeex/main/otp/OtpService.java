@@ -2,6 +2,8 @@ package com.rupeex.main.otp;
 
 import com.rupeex.main.notification.template.OtpEmailTemplateBuilder;
 import com.rupeex.main.repository.AccountsRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -15,6 +17,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class OtpService {
 
+    private static final Logger logger = LoggerFactory.getLogger(OtpService.class);
+
     private static final int OTP_EXPIRY_MINUTES = 5;
 
     private final JavaMailSender mailSender;
@@ -23,6 +27,18 @@ public class OtpService {
 
     @Value("${notification.mail.from}")
     private String fromEmail;
+
+    // Testing/dev convenience: when enabled, this fixed code always verifies
+    // successfully for any email, regardless of the OTP actually generated.
+    // This lets testers complete the payment flow without access to the
+    // mailbox (or when SMTP isn't configured at all, e.g. local/dev/docker).
+    // MUST be disabled (otp.fallback.enabled=false / OTP_FALLBACK_ENABLED=false)
+    // in any real production deployment.
+    @Value("${otp.fallback.enabled:true}")
+    private boolean fallbackEnabled;
+
+    @Value("${otp.fallback.code:0000}")
+    private String fallbackCode;
 
     // email (lowercase) -> OtpEntry
     private final Map<String, OtpEntry> store = new ConcurrentHashMap<>();
@@ -48,21 +64,47 @@ public class OtpService {
         String otp = String.format("%04d", 1000 + random.nextInt(9000));
         store.put(email.toLowerCase(), new OtpEntry(otp, LocalDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES)));
 
+        // Same on/off switch used to gate the fallback OTP in verify(): when
+        // enabled, skip the real email send entirely (no SMTP attempt, no
+        // wait/timeout) since the fallback test code will be used instead.
+        // This mirrors the notification.email.enabled master switch pattern
+        // used for payment notifications.
+        if (fallbackEnabled) {
+            logger.info("OTP fallback enabled - skipping email send to {}. Use the fallback test OTP ({}) to verify.",
+                    email, fallbackCode);
+            return;
+        }
+
         // Resolve the account holder's name for a personalised greeting (best-effort)
         String holderName = accountsRepository
                 .findByAccountNumber(accountNumber)
                 .map(a -> a.getAccountHolder())
                 .orElse(null);
 
-        sendOtpEmail(email, otp, holderName);
+        try {
+            sendOtpEmail(email, otp, holderName);
+        } catch (Exception e) {
+            // Don't fail the request just because SMTP is unreachable/unconfigured.
+            // The OTP is still stored above and can be verified normally.
+            logger.warn("Failed to send OTP email to {}: {}", email, e.getMessage());
+        }
     }
 
     /**
      * Verifies the OTP for the given email.
      * Returns true if the OTP matches and has not expired.
      * The entry is removed on a successful verification.
+     *
+     * When {@code otp.fallback.enabled} is true (default), the configured
+     * fallback code (default "0000") always verifies successfully, regardless
+     * of the actual generated OTP. This is a testing/dev convenience and MUST
+     * be disabled in production.
      */
     public boolean verify(String email, String otp) {
+        if (fallbackEnabled && fallbackCode.equals(otp)) {
+            store.remove(email.toLowerCase());
+            return true;
+        }
         OtpEntry entry = store.get(email.toLowerCase());
         if (entry == null) {
             return false;
