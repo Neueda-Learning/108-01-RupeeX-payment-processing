@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { useUserStore } from "@/lib/user-store";
 import type { AppUser, UserRole } from "@/lib/user-store";
 import { listOnboardingUsers } from "@/lib/onboarding-api";
+import { useToast } from "@/components/toast-provider";
 
 type Tab = "sent" | "received";
 
@@ -28,6 +29,7 @@ function sumAmount(rows: Payment[]): number {
 }
 
 export default function AccountsPage() {
+  const toast = useToast();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   // Only tracks the admin's manual pick from the dropdown below; the actual
@@ -191,43 +193,77 @@ export default function AccountsPage() {
     }
   };
 
-  // Step 2: verify OTP then create payment
-  const handleSendOtpVerify = async () => {
-    if (!selected) return;
-    if (sendOtpValue.length !== 4) {
-      setSendOtpError("Please enter the 4-digit OTP.");
-      return;
-    }
-    setSendOtpError(null);
-    setSendVerifying(true);
-    try {
-      const result = await verifyOtp(selected.email!, sendOtpValue);
-      if (!result.valid) {
-        setSendOtpError(result.message ?? "Invalid or expired OTP. Try again.");
-        return;
-      }
-      const created = await createPayment({
-        amount: sendForm.amount ?? 0,
-        currency: sendForm.currency ?? "INR",
-        sourceAccount: selected.accountNumber,
-        destinationAccount: sendForm.destinationAccount ?? "",
-        originCountry: sendForm.originCountry ?? "IN",
-        destinationCountry: sendForm.destinationCountry ?? "IN",
-        payerEmail: selected.email,
-      });
-      setPayments((prev) => [created, ...prev]);
-      setSendSuccess(`Payment ${created.reference ?? `#${created.id}`} submitted successfully.`);
-      setSendForm((f) => ({ ...f, amount: 0, destinationAccount: "" }));
-      setSendStep("form");
-      setSendOtpValue("");
-      setSendMaskedEmail("");
-      setShowSend(false);
-    } catch (err) {
-      setSendOtpError(err instanceof Error ? err.message : "Unable to submit payment");
-    } finally {
-      setSendVerifying(false);
-    }
-  };
+   // Step 2: verify OTP then create payment
+   const handleSendOtpVerify = async () => {
+     if (!selected) return;
+     if (sendOtpValue.length !== 4) {
+       setSendOtpError("Please enter the 4-digit OTP.");
+       return;
+     }
+     setSendOtpError(null);
+     setSendVerifying(true);
+     try {
+       const result = await verifyOtp(selected.email!, sendOtpValue);
+       if (!result.valid) {
+         setSendOtpError(result.message ?? "Invalid or expired OTP. Try again.");
+         return;
+       }
+       const created = await createPayment({
+         amount: sendForm.amount ?? 0,
+         currency: sendForm.currency ?? "INR",
+         sourceAccount: selected.accountNumber,
+         destinationAccount: sendForm.destinationAccount ?? "",
+         originCountry: sendForm.originCountry ?? "IN",
+         destinationCountry: sendForm.destinationCountry ?? "IN",
+         payerEmail: selected.email,
+       });
+
+       // Show appropriate toast based on payment status
+       if (created.status === "QUEUED") {
+         toast.success(
+           "Payment Successful! ✅",
+           `Payment ${created.reference || `#${created.id}`} has been queued for processing.`
+         );
+       } else if (created.status === "SENT" || created.status === "SETTLED") {
+         toast.success(
+           "Payment Confirmed! ✅",
+           `Payment ${created.reference || `#${created.id}`} has been sent successfully.`
+         );
+       } else if (created.status === "PENDING_REVIEW") {
+         toast.warning(
+           "Admin Approval Needed ⏳",
+           `Payment ${created.reference || `#${created.id}`} is awaiting admin approval.`
+         );
+       } else if (created.status === "FAILED") {
+         toast.error(
+           "Payment Failed ❌",
+           `Payment ${created.reference || `#${created.id}`} failed: ${created.errorMessage || "Please try again."}`
+         );
+       } else {
+         toast.info(
+           "Payment Created",
+           `Payment ${created.reference || `#${created.id}`} is being processed.`
+         );
+       }
+
+       setPayments((prev) => [created, ...prev]);
+       setSendSuccess(`Payment ${created.reference ?? `#${created.id}`} submitted successfully.`);
+       setSendForm((f) => ({ ...f, amount: 0, destinationAccount: "" }));
+       setSendStep("form");
+       setSendOtpValue("");
+       setSendMaskedEmail("");
+       setShowSend(false);
+     } catch (err) {
+       const errorMsg = err instanceof Error ? err.message : "Unable to submit payment";
+       setSendOtpError(errorMsg);
+       toast.error(
+         "Payment Failed ❌",
+         errorMsg
+       );
+     } finally {
+       setSendVerifying(false);
+     }
+   };
 
   const otherAccounts = accounts.filter(
     (a) => a.accountNumber !== selected?.accountNumber,
