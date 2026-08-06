@@ -4,6 +4,8 @@ services:
     image: ${IMAGE_FULL}:${IMAGE_TAG:-latest}
     env_file:
       - .env
+    environment:
+      OTP_FALLBACK_ENABLED: ${OTP_FALLBACK_ENABLED:-false}
     ports:
       # Bound to localhost only: not exposed to the internet. Use an SSH
       # tunnel for direct debugging; public traffic goes through nginx.
