@@ -92,6 +92,7 @@ export default function AdminViewPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [metricGranularity, setMetricGranularity] = useState<MetricGranularity>("day");
   const { mergeUsers, accountsVersion } = useUserStore();
 
   // Data load on mount, and again whenever `accountsVersion` is bumped (a
