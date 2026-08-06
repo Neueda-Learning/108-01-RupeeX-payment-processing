@@ -229,6 +229,8 @@ export function PaymentCreateForm({
     );
     const targetCurrency = destAcc?.currency;
     if (!targetCurrency || targetCurrency === form.currency || !form.amount) {
+      // Early return to skip unnecessary API call; state reset is safe here
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setExchange(null);
       setExchangeError(null);
       return;
