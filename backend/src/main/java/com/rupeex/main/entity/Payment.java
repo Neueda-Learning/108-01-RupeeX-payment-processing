@@ -316,6 +316,78 @@ public class Payment {
 
 
 
+    public String getSourceCurrency(){
+
+        return this.sourceCurrency;
+
+    }
+
+
+
+    public void setSourceCurrency(String sourceCurrency){
+
+        this.sourceCurrency = sourceCurrency;
+
+    }
+
+
+
+    public String getDestinationCurrency(){
+
+        return this.destinationCurrency;
+
+    }
+
+
+
+    public void setDestinationCurrency(String destinationCurrency){
+
+        this.destinationCurrency = destinationCurrency;
+
+    }
+
+
+
+    public BigDecimal getConvertedAmount(){
+
+        return this.convertedAmount;
+
+    }
+
+
+
+    public void setConvertedAmount(BigDecimal convertedAmount){
+
+        this.convertedAmount = convertedAmount;
+
+    }
+
+
+
+    public BigDecimal getExchangeRate(){
+
+        return this.exchangeRate;
+
+    }
+
+
+
+    public void setExchangeRate(BigDecimal exchangeRate){
+
+        this.exchangeRate = exchangeRate;
+
+    }
+
+
+
+    public void setOriginCountry(String originCountry){
+
+        this.originCountry = originCountry;
+
+    }
+
+
+
     /*
        Setter methods
        Used by Service layer
@@ -395,15 +467,6 @@ public class Payment {
         this.scheduledAt = scheduledAt;
 
     }
-
-
-
-    public void setOriginCountry(String originCountry){
-
-        this.originCountry = originCountry;
-
-    }
-
 
 
 
