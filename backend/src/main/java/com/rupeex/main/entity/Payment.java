@@ -150,6 +150,14 @@ public class Payment {
     private String originCountry;
 
 
+    /**
+     * Destination country of the payee, captured at creation time for
+     * cross-border payment tracking and fraud detection.
+     */
+    @Column(name = "destination_country", length = 8)
+    private String destinationCountry;
+
+
 
     /*
        Automatically called before saving first time
@@ -316,6 +324,15 @@ public class Payment {
 
 
 
+    public String getDestinationCountry(){
+
+        return this.destinationCountry;
+
+    }
+
+
+
+
     public String getSourceCurrency(){
 
         return this.sourceCurrency;
@@ -383,6 +400,14 @@ public class Payment {
     public void setOriginCountry(String originCountry){
 
         this.originCountry = originCountry;
+
+    }
+
+
+
+    public void setDestinationCountry(String destinationCountry){
+
+        this.destinationCountry = destinationCountry;
 
     }
 
