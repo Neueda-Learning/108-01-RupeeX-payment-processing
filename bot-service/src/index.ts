@@ -19,7 +19,21 @@ app.post('/nl', async (req, res) => {
   try {
     const { text, user } = req.body as { text?: string; user?: BotUser };
     if (!text) return res.status(400).json({ error: 'text required' });
+
+    console.log('🗣️  /nl - Processing natural language:', {
+      text: text.substring(0, 100),
+      user: user ? { name: user.name, accountNumber: user.accountNumber } : 'none'
+    });
+
     const intent = await parseIntent(text, user);
+
+    console.log('🧠 Intent parsed:', {
+      type: intent.type,
+      confidence: intent.confidence,
+      readOnly: intent.readOnly,
+      source: intent.source,
+      requiresConfirmation: intent.requiresConfirmation
+    });
 
     if (intent.type === 'unknown' && intent.reply) {
       return res.json({ intent, reply: intent.reply });
@@ -28,17 +42,19 @@ app.post('/nl', async (req, res) => {
     // Read-only lookups have no side effects and don't need confirmation or
     // queueing — resolve them immediately and return the data inline.
     if (intent.readOnly) {
+      console.log('📖 Read-only intent, resolving immediately');
       const result = await resolveReadOnlyIntent(intent, user);
       return res.json({ intent, ...result });
     }
 
     if (!isCommandOwnedByUser(intent, user)) {
+      console.log('🔒 Command ownership check failed');
       return res.json({ intent, error: "That's not your account, so I can't help with that request." });
     }
 
     return res.json({ intent });
   } catch (err) {
-    console.error(err);
+    console.error('❌ Error processing natural language request:', err);
     return res.status(500).json({ error: 'internal' });
   }
 });

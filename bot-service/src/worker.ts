@@ -12,7 +12,20 @@ const DEFAULT_ORIGIN_COUNTRY = process.env.BOT_DEFAULT_ORIGIN_COUNTRY || 'IN';
 const DEFAULT_DESTINATION_COUNTRY = process.env.BOT_DEFAULT_DESTINATION_COUNTRY || 'IN';
 
 async function handleMessage(command: any) {
-  console.log('Worker received command', command);
+  console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('🔔 Worker received command from queue');
+  console.log('Type:', command.type);
+  console.log('Payload:', JSON.stringify(command.payload, null, 2));
+  console.log('User:', command.__user ? {
+    name: command.__user.name,
+    accountNumber: command.__user.accountNumber,
+    role: command.__user.role
+  } : 'none');
+  if (command.__confirmedBy) {
+    console.log('Confirmed by:', command.__confirmedBy, 'at', command.__confirmedAt);
+  }
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
   const { type, payload, __user: user } = command;
   try {
     // Defense-in-depth: re-validate ownership here too, in case a command
@@ -28,14 +41,22 @@ async function handleMessage(command: any) {
       }
     }
     if (type === 'create_payment') {
+      console.log('=== CREATE PAYMENT COMMAND ===');
+      console.log('Raw command payload:', JSON.stringify(payload, null, 2));
+      console.log('User context:', user ? { name: user.name, accountNumber: user.accountNumber, role: user.role } : 'none');
+
       const sourceAccount = payload.sourceAccount || payload.accounts?.[0];
       const destinationAccount = payload.destinationAccount || payload.accounts?.[1];
+
       if (!sourceAccount || !destinationAccount) {
+        console.error('❌ Missing accounts - source:', sourceAccount, 'destination:', destinationAccount);
         throw new Error('sourceAccount and destinationAccount are both required');
       }
       if (!payload.amount || payload.amount <= 0) {
+        console.error('❌ Invalid amount:', payload.amount);
         throw new Error('amount must be a positive number');
       }
+
       // Map payload to the backend's PaymentPlatformRequest shape. All of
       // amount/currency/sourceAccount/destinationAccount/idempotencyKey/
       // originCountry/destinationCountry are @NotBlank/@NotNull on the
@@ -49,28 +70,72 @@ async function handleMessage(command: any) {
         originCountry: payload.originCountry || DEFAULT_ORIGIN_COUNTRY,
         destinationCountry: payload.destinationCountry || DEFAULT_DESTINATION_COUNTRY,
       };
+
+      console.log('📤 Sending payment request to backend:', PAYMENT_API);
+      console.log('Request body:', JSON.stringify(body, null, 2));
+
       const headers: any = {};
       if (BOT_API_KEY) headers['Authorization'] = `Bearer ${BOT_API_KEY}`;
+
       const resp = await axios.post(`${PAYMENT_API}/payments`, body, { headers });
-      console.log('Payment API response', resp.status, resp.data);
+
+      console.log('✅ Payment API response - Status:', resp.status);
+      console.log('Response headers:', JSON.stringify(resp.headers, null, 2));
+      console.log('Response data:', JSON.stringify(resp.data, null, 2));
+      console.log('=== END CREATE PAYMENT ===');
     } else if (type === 'retry_payment') {
+      console.log('=== RETRY PAYMENT COMMAND ===');
       const id = payload.paymentId;
-      if (!id) throw new Error('paymentId missing');
+      if (!id) {
+        console.error('❌ Missing paymentId');
+        throw new Error('paymentId missing');
+      }
+      console.log('Payment ID:', id);
+      console.log('📤 Sending retry request to backend:', `${PAYMENT_API}/payments/${id}/retry`);
+
       const headers: any = {};
       if (BOT_API_KEY) headers['Authorization'] = `Bearer ${BOT_API_KEY}`;
-      await axios.post(`${PAYMENT_API}/payments/${id}/retry`, {}, { headers });
+      const resp = await axios.post(`${PAYMENT_API}/payments/${id}/retry`, {}, { headers });
+
+      console.log('✅ Retry response - Status:', resp.status);
+      console.log('Response data:', JSON.stringify(resp.data, null, 2));
+      console.log('=== END RETRY PAYMENT ===');
     } else if (type === 'cancel_payment') {
+      console.log('=== CANCEL PAYMENT COMMAND ===');
       const id = payload.paymentId;
-      if (!id) throw new Error('paymentId missing');
+      if (!id) {
+        console.error('❌ Missing paymentId');
+        throw new Error('paymentId missing');
+      }
+      console.log('Payment ID:', id);
+      console.log('📤 Sending cancel request to backend:', `${PAYMENT_API}/payments/${id}/cancel`);
+
       const headers: any = {};
       if (BOT_API_KEY) headers['Authorization'] = `Bearer ${BOT_API_KEY}`;
-      await axios.post(`${PAYMENT_API}/payments/${id}/cancel`, {}, { headers });
+      const resp = await axios.post(`${PAYMENT_API}/payments/${id}/cancel`, {}, { headers });
+
+      console.log('✅ Cancel response - Status:', resp.status);
+      console.log('Response data:', JSON.stringify(resp.data, null, 2));
+      console.log('=== END CANCEL PAYMENT ===');
     } else {
       console.warn('Unknown command type', type);
     }
   } catch (err: any) {
-    const detail = err?.response?.data ? JSON.stringify(err.response.data) : err.message || err;
-    console.error('Error executing command:', detail);
+    console.error('❌ Error executing command:');
+    console.error('Command type:', type);
+
+    if (err?.response) {
+      // Backend returned an error response
+      console.error('Backend error response:');
+      console.error('  Status:', err.response.status, err.response.statusText);
+      console.error('  Headers:', JSON.stringify(err.response.headers, null, 2));
+      console.error('  Data:', JSON.stringify(err.response.data, null, 2));
+    } else if (err?.message) {
+      console.error('Error message:', err.message);
+    } else {
+      console.error('Unknown error:', err);
+    }
+
     throw err;
   }
 }

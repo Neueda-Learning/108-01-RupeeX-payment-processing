@@ -62,6 +62,16 @@ function mapSlmToCommand(slm: Awaited<ReturnType<typeof extractIntentWithSLM>>, 
   if (!sourceAccount && user?.accountNumber && mentionsOwnAccount(text)) {
     sourceAccount = user.accountNumber;
   }
+
+  // Normalize currency: RS/rupees -> INR, ensure uppercase
+  let currency = result.currency;
+  if (currency) {
+    currency = currency.toUpperCase();
+    if (currency === 'RS' || currency === 'RUPEES' || currency === 'RUPEE') {
+      currency = 'INR';
+    }
+  }
+
   const requiresConfirmation = result.type === 'create_payment' && (amount || 0) >= HIGH_THRESHOLD;
 
   switch (result.type) {
@@ -70,14 +80,14 @@ function mapSlmToCommand(slm: Awaited<ReturnType<typeof extractIntentWithSLM>>, 
         type: 'create_payment',
         payload: {
           amount,
-          currency: result.currency || 'INR',
+          currency: currency || 'INR',
           accounts: [sourceAccount, result.destinationAccount].filter(Boolean),
           sourceAccount,
           destinationAccount: result.destinationAccount,
           raw: text,
         },
         confidence: result.confidence ?? 0.7,
-        summary: `Create payment ${amount ?? ''} ${result.currency ?? ''} ${sourceAccount ?? ''} -> ${result.destinationAccount ?? ''}`,
+        summary: `Create payment ${amount ?? ''} ${currency || 'INR'} ${sourceAccount ?? ''} -> ${result.destinationAccount ?? ''}`,
         requiresConfirmation,
         source: 'slm',
       };
@@ -108,9 +118,9 @@ function mapSlmToCommand(slm: Awaited<ReturnType<typeof extractIntentWithSLM>>, 
     case 'check_balance':
       return {
         type: 'check_balance',
-        payload: { accountNumber: sourceAccount, currency: result.currency, raw: text },
+        payload: { accountNumber: sourceAccount, currency: currency, raw: text },
         confidence: result.confidence ?? 0.7,
-        summary: `Check balance for ${sourceAccount ?? 'account'}${result.currency ? ` in ${result.currency}` : ''}`,
+        summary: `Check balance for ${sourceAccount ?? 'account'}${currency ? ` in ${currency}` : ''}`,
         readOnly: true,
         source: 'slm',
       };
@@ -140,53 +150,58 @@ function mapSlmToCommand(slm: Awaited<ReturnType<typeof extractIntentWithSLM>>, 
 /**
  * Deterministic rule-based intent parser. Used as a fallback when the SLM
  * is disabled, unreachable, or not confident enough.
+ *
+ * IMPORTANT: Check read-only operations (balance, status, list) FIRST before
+ * payment operations to avoid false positives where "send" or "check" might
+ * be misinterpreted as payment creation.
  */
 export function parseIntentRules(text: string, user?: BotUser): BotCommand {
   const t = text.trim().toLowerCase();
 
-  if (/create .*payment|make .*payment|send .*payment/.test(t)) {
-    // naive extraction: find numbers and account words
-    const amountMatch = t.match(/(\d+[\,\d]*(?:\.\d+)?)/);
-    const amount = amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) : undefined;
-    const currencyMatch = t.match(/\b(inr|usd|eur|gbp)\b/);
-    const currency = currencyMatch ? currencyMatch[1].toUpperCase() : 'INR';
-
-    // extract account identifiers, e.g. "from ACC-10001 to ACC-10002"
-    const fromToMatch = t.match(/from\s+([a-z0-9\-]+)\s+to\s+([a-z0-9\-]+)/i);
-    let sourceAccount: string | undefined;
-    let destinationAccount: string | undefined;
-    if (fromToMatch) {
-      sourceAccount = fromToMatch[1].toUpperCase();
-      destinationAccount = fromToMatch[2].toUpperCase();
-    } else {
-      // fallback: generic "account <id>" mentions, in order of appearance
-      const genericMatches = [...t.matchAll(/account\s*([a-z0-9\-]+)/g)].map((m) => m[1].toUpperCase());
-      sourceAccount = genericMatches[0];
-      destinationAccount = genericMatches[1];
+  // Priority 1: Check for balance queries FIRST (most common query)
+  if (/\bbalance\b|what'?s?\s+my\s+balance|how\s+much/.test(t)) {
+    let accountNumber = extractAccountNumber(t);
+    if (!accountNumber && user?.accountNumber && mentionsOwnAccount(t)) {
+      accountNumber = user.accountNumber;
     }
-    if (!sourceAccount && user?.accountNumber && mentionsOwnAccount(t)) {
-      sourceAccount = user.accountNumber;
-    }
-    const accounts = [sourceAccount, destinationAccount].filter(Boolean) as string[];
-
-    const requiresConfirmation = (amount || 0) >= HIGH_THRESHOLD;
+    const currencyMatch = t.match(/\b(inr|usd|eur|gbp|rs)\b/);
+    const currency = currencyMatch ? currencyMatch[1].toUpperCase() : undefined;
     return {
-      type: 'create_payment',
-      payload: {
-        amount,
-        currency,
-        accounts,
-        sourceAccount,
-        destinationAccount,
-        raw: text
-      },
-      confidence: 0.6,
-      summary: `Create payment ${amount || ''} ${currency} ${sourceAccount ?? ''} -> ${destinationAccount ?? ''}`,
-      requiresConfirmation,
+      type: 'check_balance',
+      payload: { accountNumber, currency, raw: text },
+      confidence: accountNumber ? 0.8 : 0.4,
+      summary: `Check balance for ${accountNumber ?? 'account'}${currency ? ` in ${currency}` : ''}`,
+      readOnly: true,
       source: 'rules',
     };
   }
 
+  // Priority 2: Payment status checks
+  if (/status\b.*\bpayment\b|\bpayment\b.*\bstatus\b/.test(t)) {
+    const idMatch = t.match(/#?(\d+)/);
+    return {
+      type: 'payment_status',
+      payload: { paymentId: idMatch ? idMatch[1] : undefined, raw: text },
+      confidence: idMatch ? 0.85 : 0.4,
+      summary: `Check status of payment ${idMatch ? idMatch[1] : ''}`,
+      readOnly: true,
+      source: 'rules',
+    };
+  }
+
+  // Priority 3: List accounts
+  if (/(list|show|all)\b.*\baccounts?\b/.test(t)) {
+    return {
+      type: 'list_accounts',
+      payload: { raw: text },
+      confidence: 0.8,
+      summary: 'List accounts',
+      readOnly: true,
+      source: 'rules',
+    };
+  }
+
+  // Priority 4: Payment retry/cancel operations
   if (/retry .*payment|retry payment/.test(t)) {
     const idMatch = t.match(/#?(\d+)/);
     return {
@@ -209,42 +224,55 @@ export function parseIntentRules(text: string, user?: BotUser): BotCommand {
     };
   }
 
-  if (/\bbalance\b/.test(t)) {
-    let accountNumber = extractAccountNumber(t);
-    if (!accountNumber && user?.accountNumber && mentionsOwnAccount(t)) {
-      accountNumber = user.accountNumber;
+  // Priority 5: Payment creation (must be explicit with payment keywords or "send X to Y" pattern)
+  // More specific: require either "payment" keyword OR clear "send/transfer X to Y" pattern
+  const hasPaymentKeyword = /\b(create|make|send|transfer|pay)\b.*\b(payment|money|funds?)\b/.test(t);
+  const hasSendToPattern = /\b(send|transfer|pay)\b.*\d+.*\b(to|into)\b.*[a-z0-9\-]+/i.test(t);
+
+  if (hasPaymentKeyword || hasSendToPattern) {
+    // naive extraction: find numbers and account words
+    const amountMatch = t.match(/(\d+[\,\d]*(?:\.\d+)?)/);
+    const amount = amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) : undefined;
+    const currencyMatch = t.match(/\b(inr|usd|eur|gbp|rs)\b/);
+    const currency = currencyMatch ? (currencyMatch[1] === 'rs' ? 'INR' : currencyMatch[1].toUpperCase()) : 'INR';
+
+    // extract account identifiers, e.g. "from ACC-10001 to ACC-10002"
+    const fromToMatch = t.match(/from\s+([a-z0-9\-]+)\s+to\s+([a-z0-9\-]+)/i);
+    let sourceAccount: string | undefined;
+    let destinationAccount: string | undefined;
+    if (fromToMatch) {
+      sourceAccount = fromToMatch[1].toUpperCase();
+      destinationAccount = fromToMatch[2].toUpperCase();
+    } else {
+      // Look for "to <account>" pattern
+      const toMatch = t.match(/\b(?:to|into)\s+([a-z0-9\-]+)/i);
+      if (toMatch) {
+        destinationAccount = toMatch[1].toUpperCase();
+      }
+      // fallback: generic "account <id>" mentions, in order of appearance
+      const genericMatches = [...t.matchAll(/account\s*([a-z0-9\-]+)/g)].map((m) => m[1].toUpperCase());
+      if (!destinationAccount) destinationAccount = genericMatches[0];
+      if (!sourceAccount && genericMatches.length > 1) sourceAccount = genericMatches[1];
     }
-    const currencyMatch = t.match(/\b(inr|usd|eur|gbp)\b/);
-    const currency = currencyMatch ? currencyMatch[1].toUpperCase() : undefined;
-    return {
-      type: 'check_balance',
-      payload: { accountNumber, currency, raw: text },
-      confidence: accountNumber ? 0.8 : 0.4,
-      summary: `Check balance for ${accountNumber ?? 'account'}${currency ? ` in ${currency}` : ''}`,
-      readOnly: true,
-      source: 'rules',
-    };
-  }
+    if (!sourceAccount && user?.accountNumber && mentionsOwnAccount(t)) {
+      sourceAccount = user.accountNumber;
+    }
+    const accounts = [sourceAccount, destinationAccount].filter(Boolean) as string[];
 
-  if (/(list|show|all)\b.*\baccounts?\b/.test(t)) {
+    const requiresConfirmation = (amount || 0) >= HIGH_THRESHOLD;
     return {
-      type: 'list_accounts',
-      payload: { raw: text },
-      confidence: 0.8,
-      summary: 'List accounts',
-      readOnly: true,
-      source: 'rules',
-    };
-  }
-
-  if (/status\b.*\bpayment\b|\bpayment\b.*\bstatus\b/.test(t)) {
-    const idMatch = t.match(/#?(\d+)/);
-    return {
-      type: 'payment_status',
-      payload: { paymentId: idMatch ? idMatch[1] : undefined, raw: text },
-      confidence: idMatch ? 0.85 : 0.4,
-      summary: `Check status of payment ${idMatch ? idMatch[1] : ''}`,
-      readOnly: true,
+      type: 'create_payment',
+      payload: {
+        amount,
+        currency,
+        accounts,
+        sourceAccount,
+        destinationAccount,
+        raw: text
+      },
+      confidence: 0.6,
+      summary: `Create payment ${amount || ''} ${currency} ${sourceAccount ?? ''} -> ${destinationAccount ?? ''}`,
+      requiresConfirmation,
       source: 'rules',
     };
   }

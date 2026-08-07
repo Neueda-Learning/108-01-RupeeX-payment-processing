@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         COMPOSE_FILE = "docker-compose.yml"
+        COMPOSE_PROJECT_NAME = "rupeex-home"
     }
 
     triggers {
@@ -166,7 +167,62 @@ pipeline {
         stage('Wait For Application') {
             steps {
                 sh '''
-                    sleep 20
+                    echo "Waiting for all services to start..."
+                    sleep 10
+
+                    echo "Checking service status..."
+                    docker-compose -p ${COMPOSE_PROJECT_NAME} -f ${COMPOSE_FILE} ps
+
+                    echo "Waiting for backend to be ready..."
+                    for i in $(seq 1 30); do
+                        if docker logs rupeex-app 2>&1 | grep -q "Started RupeeXApplication"; then
+                            echo "✓ Backend is ready!"
+                            break
+                        fi
+                        echo "Attempt $i/30: Backend not ready yet..."
+                        sleep 2
+                    done
+
+                    echo "Waiting for RabbitMQ to be healthy..."
+                    for i in $(seq 1 30); do
+                        STATUS=$(docker inspect \
+                        --format='{{.State.Health.Status}}' \
+                        rupeex-rabbitmq 2>/dev/null || echo "not-found")
+
+                        if [ "$STATUS" = "healthy" ]; then
+                            echo "✓ RabbitMQ is healthy!"
+                            break
+                        fi
+                        echo "Attempt $i/30: RabbitMQ status = $STATUS"
+                        sleep 2
+                    done
+
+                    echo "Waiting for Ollama to be healthy..."
+                    for i in $(seq 1 30); do
+                        STATUS=$(docker inspect \
+                        --format='{{.State.Health.Status}}' \
+                        rupeex-ollama 2>/dev/null || echo "not-found")
+
+                        if [ "$STATUS" = "healthy" ]; then
+                            echo "✓ Ollama is healthy!"
+                            break
+                        fi
+                        echo "Attempt $i/30: Ollama status = $STATUS"
+                        sleep 2
+                    done
+
+                    echo "Checking if bot-service started successfully..."
+                    for i in $(seq 1 20); do
+                        if docker logs rupeex-bot-service 2>&1 | grep -q "listening on 4001"; then
+                            echo "✓ Bot service is running!"
+                            break
+                        fi
+                        echo "Attempt $i/20: Bot service not ready yet..."
+                        sleep 2
+                    done
+
+                    echo "Final service status:"
+                    docker ps --format "table {{.Names}}\\t{{.Status}}"
                 '''
             }
         }
@@ -175,17 +231,17 @@ pipeline {
         stage('Verify Deployment') {
             steps {
                 sh '''
+                    echo "Verifying all containers are running..."
                     docker ps
 
-                    docker-compose -f ${COMPOSE_FILE} ps
-
+                    echo "Checking docker-compose service status..."
+                    docker-compose -p ${COMPOSE_PROJECT_NAME} -f ${COMPOSE_FILE} ps
 
                     echo "Backend logs:"
                     docker logs --tail=50 rupeex-app || true
 
-
                     echo "Frontend logs:"
-                    docker logs --tail=100 rupeex-frontend || true
+                    docker logs --tail=50 rupeex-frontend || true
                 '''
             }
         }

@@ -46,10 +46,12 @@ Given a user's natural language request, respond with ONLY a single-line JSON ob
 {"type":"create_payment|retry_payment|cancel_payment|query_payments|check_balance|list_accounts|payment_status|unknown","amount":number|null,"currency":string|null,"sourceAccount":string|null,"destinationAccount":string|null,"paymentId":string|null,"confidence":number,"reply":string|null}
 Rules:
 - "type" must be one of the enumerated values.
-- For check_balance requests, put the account number to look up in "sourceAccount". If a specific currency is mentioned, put it in "currency".
+- For "check_balance" requests (queries about balance, "how much do I have", "what's my balance"), put the account number in "sourceAccount". If a specific currency is mentioned, put it in "currency". Set "destinationAccount" to null.
+- For "create_payment" requests (send money, make payment, transfer funds), put the source in "sourceAccount" and destination in "destinationAccount". Both accounts must be present for payment creation.
 - For list_accounts requests, all fields except type/confidence should be null.
 - For payment_status requests, put the payment id in "paymentId".
 - Use null for fields that are not present in the request.
+- Currency can be "INR", "USD", "EUR", "GBP". If user says "RS" or "rupees", use "INR".
 - If the request is a general greeting (e.g., "hi", "good morning"), a pleasantry ("how are you", "thanks"), or a question about capabilities ("what can you do?"), set "type" to "unknown" and provide a polite, concise conversational response in the "reply" field.
 - "confidence" is a number between 0 and 1 reflecting how sure you are.
 - Do not include any text outside the JSON object.
@@ -67,8 +69,14 @@ User: what is my balance?
 {"type":"check_balance","amount":null,"currency":null,"sourceAccount":null,"destinationAccount":null,"paymentId":null,"confidence":0.9,"reply":null}
 User: what is my balance in USD?
 {"type":"check_balance","amount":null,"currency":"USD","sourceAccount":null,"destinationAccount":null,"paymentId":null,"confidence":0.9,"reply":null}
+User: check balance for ACC-10001
+{"type":"check_balance","amount":null,"currency":null,"sourceAccount":"ACC-10001","destinationAccount":null,"paymentId":null,"confidence":0.95,"reply":null}
+User: how much money do I have in rupees?
+{"type":"check_balance","amount":null,"currency":"INR","sourceAccount":null,"destinationAccount":null,"paymentId":null,"confidence":0.9,"reply":null}
 User: send 100 EUR to ACC-123
-{"type":"create_payment","amount":100,"currency":"EUR","sourceAccount":null,"destinationAccount":"ACC-123","paymentId":null,"confidence":0.9,"reply":null}`;
+{"type":"create_payment","amount":100,"currency":"EUR","sourceAccount":null,"destinationAccount":"ACC-123","paymentId":null,"confidence":0.9,"reply":null}
+User: transfer 50 RS from ACC-10001 to ACC-10002
+{"type":"create_payment","amount":50,"currency":"INR","sourceAccount":"ACC-10001","destinationAccount":"ACC-10002","paymentId":null,"confidence":0.95,"reply":null}`;
 
 /**
  * Calls the local Ollama server to extract a structured intent from free text.

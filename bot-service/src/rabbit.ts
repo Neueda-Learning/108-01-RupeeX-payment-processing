@@ -6,6 +6,7 @@ let channel: amqp.Channel | null = null;
 // In-memory fallback queue for prototype mode when RabbitMQ is not available.
 const inMemoryQueue: any[] = [];
 let inMemoryConsumers: Array<(msg: any) => Promise<void>> = [];
+let isProcessing = false;
 
 export async function connectRabbit(amqpUrl?: string) {
   const url = amqpUrl || process.env.AMQP_URL || 'amqp://localhost';
@@ -36,10 +37,36 @@ export async function connectRabbit(amqpUrl?: string) {
   }
 }
 
+// Process in-memory queue - drain all pending commands
+async function drainInMemoryQueue() {
+  if (isProcessing || inMemoryQueue.length === 0 || inMemoryConsumers.length === 0) {
+    return;
+  }
+
+  isProcessing = true;
+  try {
+    while (inMemoryQueue.length > 0) {
+      const cmd = inMemoryQueue.shift();
+      try {
+        for (const consumer of inMemoryConsumers) {
+          await consumer(cmd);
+        }
+      } catch (err) {
+        console.error('In-memory consumer failed', err);
+      }
+    }
+  } finally {
+    isProcessing = false;
+  }
+}
+
 export async function publishCommand(command: any) {
   if (!channel) {
-    // fallback
+    // fallback to in-memory queue
+    console.log('[queue] Using in-memory fallback queue');
     inMemoryQueue.push(command);
+    // Trigger immediate processing
+    setImmediate(() => drainInMemoryQueue());
     return true;
   }
   const payload = Buffer.from(JSON.stringify(command));
@@ -49,20 +76,12 @@ export async function publishCommand(command: any) {
 export async function consumeCommands(onMessage: (msg: any) => Promise<void>) {
   if (!channel) {
     // Register consumer for in-memory queue
+    console.log('[queue] Registering in-memory queue consumer');
     inMemoryConsumers.push(onMessage);
-    // Start drain loop
-    const drain = async () => {
-      while (inMemoryQueue.length > 0) {
-        const cmd = inMemoryQueue.shift();
-        try {
-          for (const c of inMemoryConsumers) await c(cmd);
-        } catch (err) {
-          console.error('In-memory consumer failed', err);
-        }
-      }
-    };
-    // run drain periodically
-    setInterval(drain, 500);
+    // Start periodic drain loop as backup
+    setInterval(drainInMemoryQueue, 500);
+    // Drain immediately in case there are already queued commands
+    setImmediate(() => drainInMemoryQueue());
     return;
   }
 
