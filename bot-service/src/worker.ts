@@ -76,10 +76,37 @@ async function handleMessage(command: any) {
 }
 
 export async function startWorker() {
+  console.log('Bot worker starting...');
+
+  // Retry connection with exponential backoff
+  const maxRetries = 10;
+  let retryCount = 0;
+  let connected = false;
+
+  while (!connected && retryCount < maxRetries) {
+    try {
+      await connectRabbit();
+      console.log('Worker connected to AMQP successfully');
+      connected = true;
+    } catch (err: any) {
+      retryCount++;
+      const delayMs = Math.min(1000 * Math.pow(2, retryCount), 30000); // Max 30 seconds
+      console.warn(`Worker AMQP connection attempt ${retryCount}/${maxRetries} failed: ${err.message}`);
+
+      if (retryCount < maxRetries) {
+        console.log(`Retrying in ${delayMs}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+
+  if (!connected) {
+    console.error('Worker failed to connect to AMQP after maximum retries. Using in-memory fallback.');
+  }
+
   try {
-    await connectRabbit();
-    console.log('Worker connected to AMQP (or using in-memory)');
     await consumeCommands(handleMessage);
+    console.log('Worker is now listening for commands');
   } catch (err) {
     console.error('Worker startup failed', err);
     process.exit(1);

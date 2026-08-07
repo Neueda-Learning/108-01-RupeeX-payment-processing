@@ -191,12 +191,31 @@ app.post('/confirm', async (req, res) => {
 const port = Number(process.env.PORT || 4001);
 app.listen(port, async () => {
   console.log(`RupeeX Bot Service listening on ${port}`);
-  try {
-    await connectRabbit();
-    console.log('Connected to AMQP');
-  } catch (err: any) {
-    console.warn('AMQP not available at startup:', err.message || err);
+
+  // Try connecting to RabbitMQ with retries
+  let retries = 5;
+  let connected = false;
+
+  while (!connected && retries > 0) {
+    try {
+      await connectRabbit();
+      console.log('Connected to AMQP');
+      connected = true;
+    } catch (err: any) {
+      retries--;
+      console.warn(`AMQP connection attempt failed (${5 - retries}/5):`, err.message || err);
+      if (retries > 0) {
+        const delayMs = (6 - retries) * 2000; // 2s, 4s, 6s, 8s, 10s
+        console.log(`Retrying in ${delayMs}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
   }
+
+  if (!connected) {
+    console.warn('AMQP not available after retries - using in-memory fallback mode');
+  }
+
   if (process.env.START_WORKER === 'true') {
     console.log('Starting embedded worker (prototype mode)');
     startWorker().catch((e) => console.error('embedded worker failed', e));

@@ -119,6 +119,7 @@ public class PaymentOrchestrationService {
         payment.setStatus(PaymentStatus.CREATED);
         payment.setPayerEmail(request.getPayerEmail());
         payment.setOriginCountry(originCountry);
+        payment.setDestinationCountry(destinationCountry);
         payment.setScheduledAt(request.getScheduledAt());
         payment = paymentRepository.save(payment);
         auditEngineService.record(payment.getId(), "PaymentEngine", "Payment Created", null, PaymentStatus.CREATED, 0L, null);

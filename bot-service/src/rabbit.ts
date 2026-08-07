@@ -9,13 +9,28 @@ let inMemoryConsumers: Array<(msg: any) => Promise<void>> = [];
 
 export async function connectRabbit(amqpUrl?: string) {
   const url = amqpUrl || process.env.AMQP_URL || 'amqp://localhost';
+  console.log(`Attempting to connect to RabbitMQ at: ${url.replace(/\/\/.*@/, '//***@')}`);
+
   try {
     const conn = await amqp.connect(url);
+
+    conn.on('error', (err) => {
+      console.error('RabbitMQ connection error:', err.message);
+    });
+
+    conn.on('close', () => {
+      console.warn('RabbitMQ connection closed');
+    });
+
     channel = await conn.createChannel();
     await channel.assertQueue(QUEUE, { durable: true });
+    console.log(`Successfully connected to RabbitMQ, queue: ${QUEUE}`);
     return channel;
   } catch (err: any) {
     console.warn('AMQP connect failed, using in-memory queue for prototype:', err.message || err);
+    if (err.code === 'ECONNREFUSED') {
+      console.warn(`Connection refused - RabbitMQ may not be running or not yet ready at ${url}`);
+    }
     // fall back to in-memory queue; no channel returned
     return null as any;
   }
