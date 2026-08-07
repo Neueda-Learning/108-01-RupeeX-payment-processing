@@ -60,6 +60,7 @@ docker-compose up --build -d
 
 ## Architecture Docs
 
+- [System Architecture & Tech Stack Overview](ARCHITECTURE.md)
 - [Platform Blueprint](Documentation/PLATFORM_ARCHITECTURE_BLUEPRINT.md)
 - [Database Schema](backend/src/main/resources/schema.sql)
 
